@@ -1,12 +1,13 @@
 ### accept file upload and save for relative paths
 #pip install python-multipart for fastapi.File
 import os
+import shutil
 from fastapi import File, UploadFile, FastAPI
 import gradio as gr
-
-filepath = os.path.realpath(__file__)
+from pathlib import Path
+filepath = Path(os.path.realpath(__file__))
 # get parent of parent directory
-basepath = os.path.dirname(os.path.dirname(filepath))
+basepath = filepath.parent.parent.parent.parent.absolute()
 
 
 def upload_api(_:gr.Blocks, app:FastAPI):
@@ -15,7 +16,7 @@ def upload_api(_:gr.Blocks, app:FastAPI):
     """
     @app.post("/upload")
         # test with {'file': open('images/1.png', 'rb')}
-    def upload(file: UploadFile = File(...), path: str = '/tmp'):
+    def upload(file: UploadFile = File(...), path: str = './tmp'):
         try:
             contents = file.file.read()
             with open(file.filename, 'wb') as f:
@@ -26,41 +27,33 @@ def upload_api(_:gr.Blocks, app:FastAPI):
             file.file.close()
         # move file to path
         try:
-            os.rename(file.filename, os.path.join(path, file.filename))
-        except Exception:
-            return {"message": "There was an error moving the file", 'success': False}
+            os.makedirs(path, exist_ok=True)
+            shutil.move(file.filename, path) 
+        except Exception as e:
+            return {"message": f"There was an error moving the {file.filename} to {path}", 'success': False}
 
-        return {"message": f"Successfully uploaded {file.filename}", 'success': True}
+        return {"message": f"Successfully uploaded {file.filename} to {path}", 'success': True}
 
     @app.post("/upload_sd_model")
-    def upload_sd_model(file:UploadFile = File(...), sd_model_name = 'a.safetensors'):
-        # upload file to <root>/models/Stable-diffusion/<sd_model_name>
-        # sd_model_name may be a.safetensors or /some_path/../<model_name>
-        # assert endswith safetensors or ckpt
-        assert sd_model_name.endswith('safetensors') or sd_model_name.endswith('ckpt'), "sd_model_name must end with safetensors or ckpt"
-        # assert sd_model_name does not contain ../
-        assert '../' not in sd_model_name, "sd_model_name must not contain ../"
-        return upload(file, os.path.join(basepath, 'models', 'Stable-diffusion', sd_model_name))
+    def upload_sd_model(file:UploadFile = File(...), sd_path = ''):
+        # upload file to <root>/models/Stable-diffusion/<sd_model_name>/<sd_model_name>
+        # sd_model_name may be a.safetensors or /sd_path/../<model_name>
+        assert '../' not in sd_path, "sd_model_name must not contain ../"
+        return upload(file, os.path.join(basepath, 'models', 'Stable-diffusion', sd_path))
         
     @app.post("/upload_vae_model")
-    def upload_vae_model(file:UploadFile = File(...), vae_model_name = 'a.pt'):
-        # upload file to <root>/models/VAE/<vae_model_name>
-        # vae_model_name may be a.pt or /some_path/../<model_name>
-        # assert endswith pt or ckpt
-        assert vae_model_name.endswith('pt') or vae_model_name.endswith('ckpt'), "vae_model_name must end with pt or ckpt"
-        # assert vae_model_name does not contain ../
-        assert '../' not in vae_model_name, "vae_model_name must not contain ../"
-        return upload(file, os.path.join(basepath, 'models', 'VAE', vae_model_name))
+    def upload_vae_model(file:UploadFile = File(...), vae_path = ''):
+        # upload file to <root>/models/VAE/<vae_path>/<vae_model_name>
+        assert '../' not in vae_path, "vae_path must not contain ../"
+        return upload(file, os.path.join(basepath, 'models', 'VAE', vae_path))
 
     @app.post("/upload_lora_model")
-    def upload_lora_model(file:UploadFile = File(...), lora_model_name = 'a.safetensors'):
-        # upload file to <root>/models/LoRA/<lora_model_name>
-        # lora_model_name may be a.safetensors or /some_path/../<model_name>
-        # assert endswith safetensors or ckpt
-        assert lora_model_name.endswith('safetensors') or lora_model_name.endswith('ckpt'), "lora_model_name must end with safetensors or ckpt"
+    def upload_lora_model(file:UploadFile = File(...), lora_path:str = ''):
+        # upload file to <root>/models/LoRA/<lora_path>/<lora_model_name>
+        # l /lora_path/<model_name>
         # assert lora_model_name does not contain ../
-        assert '../' not in lora_model_name, "lora_model_name must not contain ../"
-        return upload(file, os.path.join(basepath, 'models', 'LoRA', lora_model_name))
+        assert '../' not in lora_path, "lora_path must not contain ../"
+        return upload(file, os.path.join(basepath, 'models', 'LoRA', lora_path))
 
 # only works in context of sdwebui
 try:
