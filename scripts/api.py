@@ -2,13 +2,12 @@
 #pip install python-multipart for fastapi.File
 import os
 import shutil
-from fastapi import File, UploadFile, FastAPI
+from fastapi import File, UploadFile, FastAPI, Form
 import gradio as gr
 from pathlib import Path
 filepath = Path(os.path.realpath(__file__))
 # get parent of parent directory
 basepath = filepath.parent.parent.parent.parent.absolute()
-
 
 def upload_api(_:gr.Blocks, app:FastAPI):
     """
@@ -35,25 +34,34 @@ def upload_api(_:gr.Blocks, app:FastAPI):
         return {"message": f"Successfully uploaded {file.filename} to {path}", 'success': True}
 
     @app.post("/upload_sd_model")
-    def upload_sd_model(file:UploadFile = File(...), sd_path = ''):
+    def upload_sd_model(file:UploadFile = File(...), sd_path:str= Form("")):
         # upload file to <root>/models/Stable-diffusion/<sd_model_name>/<sd_model_name>
         # sd_model_name may be a.safetensors or /sd_path/../<model_name>
         assert '../' not in sd_path, "sd_model_name must not contain ../"
         return upload(file, os.path.join(basepath, 'models', 'Stable-diffusion', sd_path))
         
     @app.post("/upload_vae_model")
-    def upload_vae_model(file:UploadFile = File(...), vae_path = ''):
+    def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form("")):
         # upload file to <root>/models/VAE/<vae_path>/<vae_model_name>
         assert '../' not in vae_path, "vae_path must not contain ../"
         return upload(file, os.path.join(basepath, 'models', 'VAE', vae_path))
 
     @app.post("/upload_lora_model")
-    def upload_lora_model(file:UploadFile = File(...), lora_path:str = ''):
+    def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form("")):
+        """
+        Uploads a LoRA model to <root>/models/LoRA/<lora_path>/<lora_model_name>
+        """
         # upload file to <root>/models/LoRA/<lora_path>/<lora_model_name>
         # l /lora_path/<model_name>
         # assert lora_model_name does not contain ../
         assert '../' not in lora_path, "lora_path must not contain ../"
         return upload(file, os.path.join(basepath, 'models', 'LoRA', lora_path))
+    # can be used with curl
+    #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
+    #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=" http://127.0.0.1:7860/upload_lora_model
+    #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" http://127.0.0.1:7860/upload_lora_model
+    # or with python requests
+    # requests.post("<api>/upload_lora_model", files={"file": open("<path>", "rb")}, data={"lora_path": "<lora_path>"})
 
 # only works in context of sdwebui
 try:
