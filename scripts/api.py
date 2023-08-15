@@ -69,5 +69,5 @@ try:
 
     script_callbacks.on_app_started(upload_api)
 except:
-    print("Could not bind controlnet_api to app")
+    print("Could not bind uploader-api to app")
     pass
