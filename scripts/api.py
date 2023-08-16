@@ -5,7 +5,7 @@ import shutil
 from fastapi import File, UploadFile, FastAPI, Form
 import gradio as gr
 from pathlib import Path
-from .uploader import Connection
+from scripts.uploader import Connection
 
 filepath = Path(os.path.realpath(__file__))
 # get parent of parent directory

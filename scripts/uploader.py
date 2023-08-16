@@ -17,10 +17,10 @@ LORA_PATH = os.path.join(basepath, 'models', 'Lora')
 #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
 
 class Connection:
-    master_ap_address = '127.0.0.1:7860/'
     """
         Connects and handles the communication with the server
     """
+    master_ap_address = '127.0.0.1:7860/'
     def __init__(self, target_ap_address: str = '127.0.0.1:7860/') -> None:
         self.target_ap_address = target_ap_address
         # if not ends with /, add it
