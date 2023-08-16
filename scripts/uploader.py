@@ -87,10 +87,10 @@ class Connection:
         if has_toolbelt:
             encoder = requests_toolbelt.MultipartEncoder(fields={
                 'file': (file_basename, file_binary, 'application/octet-stream'),
-                model_path_arg: model_target_dir
+                'data' : {model_path_arg: model_target_dir}
             })
             monitor = requests_toolbelt.MultipartEncoderMonitor(encoder,
-                callback=self.create_progressbar_callback)
+                callback=self.create_progressbar_callback(encoder_obj=encoder))
             response = self.session.post(url, headers={'Content-Type': monitor.content_type}, data=monitor)
         else:
             files = {'file': (file_basename, file_binary, 'application/octet-stream')}
@@ -98,7 +98,7 @@ class Connection:
         return response
         
     @decorate_check_connection
-    def upload_sd_model(self, model_path: str = 'test/test.safetensors') -> None:
+    def upload_sd_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
             Uploads the model to the server
         """
@@ -106,13 +106,12 @@ class Connection:
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_sd_model'
         real_model_path = join_path(SD_MODEL_PATH, model_path)
-        
         with open(real_model_path, 'rb') as f:
-            response = self.send_data(f, real_model_path, model_target_dir, url)
-        print(response.text)
+            response = self.send_data(f, 'sd_path', model_target_dir, url, file_basename=os.path.basename(real_model_path))
+        return response
         
     @decorate_check_connection
-    def upload_vae_model(self, model_path: str = 'test/test.safetensors') -> None:
+    def upload_vae_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
             Uploads the model to the server
         """
@@ -121,21 +120,21 @@ class Connection:
         url = self.target_ap_address + 'upload_vae_model'
         real_model_path = join_path(VAE_PATH, model_path)
         with open(real_model_path, 'rb') as f:
-            response = self.send_data(f, real_model_path, model_target_dir, url)
-        print(response.text)
+            response = self.send_data(f, 'vae_path', model_target_dir, url, file_basename=os.path.basename(real_model_path))
+        return response
     
     @decorate_check_connection
-    def upload_lora_model(self, model_path: str = 'test/test.safetensors') -> None:
+    def upload_lora_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
             Uploads the model to the server
         """
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_lora_model'
-        real_lora_path = join_path(LORA_PATH, model_path)
-        with open(real_lora_path, 'rb') as f:
-            response = self.send_data(f, real_lora_path, model_target_dir, url)
-        print(response.text)
+        real_model_path = join_path(LORA_PATH, model_path)
+        with open(real_model_path, 'rb') as f:
+            response = self.send_data(f, 'lora_path', model_target_dir, url, file_basename=os.path.basename(real_model_path))
+        return response
         
     @decorate_check_connection
     def sync_all_sd_models(self) -> None:
@@ -171,7 +170,7 @@ class Connection:
         self.sync_all_lora_models()
         
     @decorate_check_connection
-    def sync_sd_model(self, model_path: str = 'test/test.safetensors') -> None:
+    def sync_sd_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
             Syncs the model with the server
         """
@@ -194,12 +193,13 @@ class Connection:
             success = response_json['success']
             if server_hash != self_hash or not success:
                 # sync
-                self.upload_sd_model(model_path)
+                return self.upload_sd_model(model_path)
+            return {"message": "Ther file hash matched with request", 'success': True}
         else:
             raise Exception('Server does not support Model Syncing')
             
     @decorate_check_connection
-    def sync_vae_model(self, model_path: str = 'test/test.safetensors') -> None:
+    def sync_vae_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
             Syncs the model with the server
         """
@@ -222,12 +222,13 @@ class Connection:
             success = response_json['success']
             if server_hash != self_hash or not success:
                 # sync
-                self.upload_vae_model(model_path)
+                return self.upload_vae_model(model_path)
+            return {"message": "Ther file hash matched with request", 'success': True}
         else:
             raise Exception('Server does not support Model Syncing')
         
     @decorate_check_connection
-    def sync_lora_model(self, model_path: str = 'test/test.safetensors') -> None:
+    def sync_lora_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
             Syncs the model with the server
         """
@@ -251,7 +252,8 @@ class Connection:
             success = response_json['success']
             if server_hash != self_hash or not success:
                 # sync
-                self.upload_lora_model(model_path)
+                return self.upload_lora_model(model_path)
+            return {"message": "Ther file hash matched with request", 'success': True}
         else:
             raise Exception('Server does not support Model Syncing')
     

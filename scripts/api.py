@@ -64,12 +64,18 @@ def sync_api(app:FastAPI):
         curl -X POST -F "target_api_address=http://<target>/" -F "model_path=<model_name>" http://<this>:<port>/sync/sd_model
         """
         connection = Connection(target_api_address, auth=auth)
-        connection.sync_sd_model(model_path)
+        try:
+            return connection.sync_sd_model(model_path)
+        except Exception as e:
+            return {"message": str(e), 'success': False}
     
     @app.post("/sync/vae_model")
     def sync_vae_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         connection = Connection(target_api_address, auth=auth)
-        connection.sync_vae_model(model_path)
+        try:
+            return connection.sync_vae_model(model_path)
+        except Exception as e:
+            return {"message": str(e), 'success': False}
         
     @app.post("/sync/lora_model")
     def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
@@ -77,28 +83,47 @@ def sync_api(app:FastAPI):
         curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/lora_model
         """
         connection = Connection(target_api_address, auth=auth)
-        connection.sync_lora_model(model_path)
+        try:
+            return connection.sync_lora_model(model_path)
+        except Exception as e:
+            return {"message": str(e), 'success': False}
         
     @app.post("/sync/all_sd_models")
     def sync_all_sd_models(target_api_address:str = Form(""), auth:str = Form("")):
         connection = Connection(target_api_address, auth=auth)
-        connection.sync_all_sd_models()
+        try:
+            connection.sync_all_sd_models()
+            return {"message": "Successfully synced all sd models", 'success': True}
+        except Exception as e:
+            return {"message": str(e), 'success': False}
         
     @app.post("/sync/all_vae_models")
     def sync_all_vae_models(target_api_address:str = Form(""), auth:str = Form("")):
         connection = Connection(target_api_address, auth=auth)
-        connection.sync_all_vae_models()
+        try:
+            connection.sync_all_vae_models()
+            return {"message": "Successfully synced all vae models", 'success': True}
+        except Exception as e:
+            return {"message": str(e), 'success': False}
         
     @app.post("/sync/all_lora_models")
     def sync_all_lora_models(target_api_address:str = Form(""), auth:str = Form("")):
         connection = Connection(target_api_address, auth=auth)
-        connection.sync_all_lora_models()
+        try:
+            connection.sync_all_lora_models()
+            return {"message": "Successfully synced all lora models", 'success': True}
+        except Exception as e:
+            return {"message": str(e), 'success': False}
         
     @app.post("/sync/all_models")
     def sync_all_models(target_api_address:str = Form(""), auth:str = Form("")):
         connection = Connection(target_api_address, auth=auth)
-        connection.sync_everything()
-
+        try:
+            connection.sync_everything()
+            return {"message": "Successfully synced all models", 'success': True}
+        except Exception as e:
+            return {"message": str(e), 'success': False}
+        
 def upload_api(app:FastAPI):
     """
     Binds API to app
@@ -113,7 +138,7 @@ def upload_api(app:FastAPI):
     
     @app.post("/upload")
         # test with {'file': open('images/1.png', 'rb')}
-    def upload(file: UploadFile = File(...), path: str = Form('./tmp' )):
+    def upload(file: UploadFile = File(...), path: str = Form('./tmp.fileext' )):
         # check if path is valid 'file' not directory
         if os.path.isdir(path):
             return {"message": f"Path {path} is a directory, please specify a file", 'success': False}
@@ -174,7 +199,7 @@ def fast_file_hash(file_path:str) -> str:
     """
     Computes a hash of the file at file_path with first 1MB of file, and total file size
     """
-    if file_path in file_caches:
+    if file_path in file_caches and os.path.exists(os.path.join(basepath, 'models', file_path)):
         return get_cache(file_path)
     import hashlib
     BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
