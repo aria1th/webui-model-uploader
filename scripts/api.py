@@ -5,6 +5,7 @@ import shutil
 from fastapi import File, UploadFile, FastAPI, Form
 import gradio as gr
 from pathlib import Path
+from .uploader import Connection
 
 filepath = Path(os.path.realpath(__file__))
 # get parent of parent directory
@@ -42,11 +43,65 @@ def upload_root_api(app:FastAPI):
     @app.get("/uploader/ping")
     def respond_ping():
         return {"message": "hello"}
+    
+def set_overwrite(overwrite_:bool):
+    """
+    Sets overwrite to overwrite_
+    """
+    global overwrite
+    overwrite = overwrite_
+    
+def sync_api(app:FastAPI):
+    """
+    Binds sync API with app
+    """
+    @app.post("/sync/sd_model")
+    def sync_sd_model(target_api_address:str = Form(""), model_path:str = Form("")):
+        connection = Connection(target_api_address)
+        connection.sync_sd_model(model_path)
+    
+    @app.post("/sync/vae_model")
+    def sync_vae_model(target_api_address:str = Form(""), model_path:str = Form("")):
+        connection = Connection(target_api_address)
+        connection.sync_vae_model(model_path)
+        
+    @app.post("/sync/lora_model")
+    def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form("")):
+        connection = Connection(target_api_address)
+        connection.sync_lora_model(model_path)
+        
+    @app.post("/sync/all_sd_models")
+    def sync_all_sd_models(target_api_address:str = Form("")):
+        connection = Connection(target_api_address)
+        connection.sync_all_sd_models()
+        
+    @app.post("/sync/all_vae_models")
+    def sync_all_vae_models(target_api_address:str = Form("")):
+        connection = Connection(target_api_address)
+        connection.sync_all_vae_models()
+        
+    @app.post("/sync/all_lora_models")
+    def sync_all_lora_models(target_api_address:str = Form("")):
+        connection = Connection(target_api_address)
+        connection.sync_all_lora_models()
+        
+    @app.post("/sync/all_models")
+    def sync_all_models(target_api_address:str = Form("")):
+        connection = Connection(target_api_address)
+        connection.sync_everything()
 
 def upload_api(app:FastAPI):
     """
     Binds API to app
     """
+    @app.post("/upload_options/overwrite")
+    def set_overwrite_api(overwrite_:bool):
+        """
+        Sets overwrite to overwrite_
+        """
+        set_overwrite(overwrite_)
+        return {"message": f"Set overwrite to {overwrite_}", 'value': overwrite_}
+    
     @app.post("/upload")
         # test with {'file': open('images/1.png', 'rb')}
     def upload(file: UploadFile = File(...), path: str = './tmp'):
@@ -173,6 +228,7 @@ def register_api(_:gr.Blocks, app:FastAPI):
     upload_api(app)
     query_api(app)
     upload_root_api(app)
+    sync_api(app)
     
     
     

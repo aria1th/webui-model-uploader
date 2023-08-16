@@ -81,6 +81,39 @@ class Connection:
         print(response.text)
         
     @decorate_check_connection
+    def sync_all_sd_models(self) -> None:
+        """
+            Syncs all models with the server
+        """
+        for model_path in glob.glob(SD_MODEL_PATH + '/**/*.safetensors', recursive=True):
+            self.sync_sd_model(model_path)
+            
+    @decorate_check_connection
+    def sync_all_vae_models(self) -> None:
+        """
+            Syncs all models with the server
+        """
+        for model_path in glob.glob(VAE_PATH + '/**/*.safetensors', recursive=True):
+            self.sync_vae_model(model_path)
+            
+    @decorate_check_connection
+    def sync_all_lora_models(self) -> None:
+        """
+            Syncs all models with the server
+        """
+        for model_path in glob.glob(LORA_PATH + '/**/*.safetensors', recursive=True):
+            self.sync_lora_model(model_path)
+            
+    @decorate_check_connection
+    def sync_everything(self) -> None:
+        """
+            Syncs all models with the server
+        """
+        self.sync_all_sd_models()
+        self.sync_all_vae_models()
+        self.sync_all_lora_models()
+        
+    @decorate_check_connection
     def sync_sd_model(self, model_path: str = 'test/test.safetensors') -> None:
         """
             Syncs the model with the server
