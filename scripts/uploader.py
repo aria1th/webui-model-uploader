@@ -59,6 +59,8 @@ class Connection:
     def create_progressbar_callback(encoder_obj):
         pbar = tqdm.tqdm(total=encoder_obj.len, unit="B", unit_scale=True)
         def callback(monitor):
+            if not hasattr(monitor, 'bytes_read'):
+                return
             pbar.update(monitor.bytes_read - pbar.n)
         return callback
         
@@ -85,9 +87,10 @@ class Connection:
                   file_basename:str = 'test.safetensors'
                   ) -> requests.Response:
         if has_toolbelt:
+            #curl -X POST -F "file=@F:\stable-diffusion-webui\models\Lora\Sketch_Like\\SketchLike.safetensors" -F "lora_path=test" http://onomaai.ngrok.dev/upload_lora_model
             encoder = requests_toolbelt.MultipartEncoder(fields={
                 'file': (file_basename, file_binary, 'application/octet-stream'),
-                'data' : {model_path_arg: model_target_dir}
+                model_path_arg: model_target_dir
             })
             monitor = requests_toolbelt.MultipartEncoderMonitor(encoder,
                 callback=self.create_progressbar_callback(encoder_obj=encoder))

@@ -65,15 +65,18 @@ def sync_api(app:FastAPI):
         """
         connection = Connection(target_api_address, auth=auth)
         try:
-            return connection.sync_sd_model(model_path)
+            return connection.sync_sd_model(model_path).json()
         except Exception as e:
             return {"message": str(e), 'success': False}
     
     @app.post("/sync/vae_model")
     def sync_vae_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
+        """
+        curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://<this>:<port>/sync/vae_model
+        """
         connection = Connection(target_api_address, auth=auth)
         try:
-            return connection.sync_vae_model(model_path)
+            return connection.sync_vae_model(model_path).json()
         except Exception as e:
             return {"message": str(e), 'success': False}
         
@@ -81,15 +84,19 @@ def sync_api(app:FastAPI):
     def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/lora_model
+        
         """
         connection = Connection(target_api_address, auth=auth)
         try:
-            return connection.sync_lora_model(model_path)
+            return connection.sync_lora_model(model_path).json()
         except Exception as e:
             return {"message": str(e), 'success': False}
         
     @app.post("/sync/all_sd_models")
     def sync_all_sd_models(target_api_address:str = Form(""), auth:str = Form("")):
+        """
+        curl -X POST -F "target_api_address=http://test.api.address/" http://127.0.0.1:7860/sync/all_sd_models
+        """
         connection = Connection(target_api_address, auth=auth)
         try:
             connection.sync_all_sd_models()
@@ -132,6 +139,7 @@ def upload_api(app:FastAPI):
     def set_overwrite_api(overwrite_:bool):
         """
         Sets overwrite to overwrite_
+        curl -X POST -F "overwrite_=True" http://test.api.address/upload_options/overwrite
         """
         set_overwrite(overwrite_)
         return {"message": f"Set overwrite to {overwrite_}", 'value': overwrite_}
