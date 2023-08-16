@@ -42,6 +42,9 @@ def upload_root_api(app:FastAPI):
     """
     @app.get("/uploader/ping")
     def respond_ping():
+        """
+        curl http://test.api.address/uploader/ping
+        """
         return {"message": "hello"}
     
 def set_overwrite(overwrite_:bool):
@@ -57,6 +60,9 @@ def sync_api(app:FastAPI):
     """
     @app.post("/sync/sd_model")
     def sync_sd_model(target_api_address:str = Form(""), model_path:str = Form("")):
+        """
+        curl -X POST -F "target_api_address=http://<target>/" -F "model_path=<model_name>" http://<this>:<port>/sync/sd_model
+        """
         connection = Connection(target_api_address)
         connection.sync_sd_model(model_path)
     
@@ -67,6 +73,9 @@ def sync_api(app:FastAPI):
         
     @app.post("/sync/lora_model")
     def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form("")):
+        """
+        curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/lora_model
+        """
         connection = Connection(target_api_address)
         connection.sync_lora_model(model_path)
         
@@ -104,7 +113,7 @@ def upload_api(app:FastAPI):
     
     @app.post("/upload")
         # test with {'file': open('images/1.png', 'rb')}
-    def upload(file: UploadFile = File(...), path: str = './tmp'):
+    def upload(file: UploadFile = File(...), path: str = Form('./tmp' )):
         try:
             contents = file.file.read()
             with open(file.filename, 'wb') as f:
@@ -189,39 +198,47 @@ def query_api(app:FastAPI):
     Binds Querying API to app
     """
     @app.post("/models/query_hash")
-    def get_hash(path:str):
+    def get_hash(path:str = Form("")):
         """
         Returns the hash of the file at path.
         path may be Stable-diffusion/<model_name>
         """
-        return {"hash": fast_file_hash(path)}
+        return wrap_return_hash(path)
+    
+    def wrap_return_hash(path:str):
+        try:
+            return {"hash": fast_file_hash(path), 'success': True}
+        except FileNotFoundError as e:
+            return {"message": str(e), 'success': False}
     
     @app.post("/models/query_hash_lora")
-    def get_hash_lora(path:str):
+    def get_hash_lora(path:str = Form("")):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get LoRA/<model_name>)
+        Example curl request as json:
+        curl -X POST -F "path=some_path/data.safetensors" "http://127.0.0.1:7860/models/query_hash_lora"
         """
         path = os.path.join('Lora', path)
-        return {"hash": fast_file_hash(path)}
+        return wrap_return_hash(path)
     
     @app.post("/models/query_hash_vae")
-    def get_hash_vae(path:str):
+    def get_hash_vae(path:str = Form("")):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get VAE/<model_name>)
         """
         path = os.path.join('VAE', path)
-        return {"hash": fast_file_hash(path)}
+        return wrap_return_hash(path)
     
     @app.post("/models/query_hash_sd")
-    def get_hash_sd(path:str):
+    def get_hash_sd(path:str = Form("")):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get Stable-diffusion/<model_name>)
         """
         path = os.path.join('Stable-diffusion', path)
-        return {"hash": fast_file_hash(path)}
+        return wrap_return_hash(path)
     
     
 def register_api(_:gr.Blocks, app:FastAPI):

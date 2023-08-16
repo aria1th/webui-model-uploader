@@ -20,13 +20,16 @@ class Connection:
     """
         Connects and handles the communication with the server
     """
-    master_ap_address = '127.0.0.1:7860/'
-    def __init__(self, target_ap_address: str = '127.0.0.1:7860/') -> None:
+    master_ap_address = 'http://127.0.0.1:7860/'
+    def __init__(self, target_ap_address: str = 'http://127.0.0.1:7860/') -> None:
         self.target_ap_address = target_ap_address
         # if not ends with /, add it
         if not self.target_ap_address.endswith('/'):
             self.target_ap_address += '/'
         self.session = requests.Session()
+        # if not starts with http://, add it
+        if not self.target_ap_address.startswith('http://') and not self.target_ap_address.startswith('https://'):
+            self.target_ap_address = 'http://' + self.target_ap_address
         
     def decorate_check_connection(func):
         def wrapper(self, *args, **kwargs):
@@ -38,7 +41,7 @@ class Connection:
         """
         Send GET request to "/uploader/ping" to check if server is running
         """
-        url = 'http://' + self.target_ap_address + 'uploader/ping'
+        url = self.target_ap_address + 'uploader/ping'
         response = self.session.get(url)
         if response.status_code == 200:
             return True
@@ -51,7 +54,7 @@ class Connection:
         """
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
-        url = 'http://' + self.target_ap_address + 'upload_sd_model'
+        url = self.target_ap_address + 'upload_sd_model'
         files = {'file': open(model_path, 'rb')}
         response = self.session.post(url, files=files, data={'sd_path': model_target_dir})
         print(response.text)
@@ -63,7 +66,7 @@ class Connection:
         """
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
-        url = 'http://' + self.target_ap_address + 'upload_vae_model'
+        url = self.target_ap_address + 'upload_vae_model'
         files = {'file': open(model_path, 'rb')}
         response = self.session.post(url, files=files, data={'vae_path': model_target_dir})
         print(response.text)
@@ -75,7 +78,7 @@ class Connection:
         """
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
-        url = 'http://' + self.target_ap_address + 'upload_lora_model'
+        url = self.target_ap_address + 'upload_lora_model'
         files = {'file': open(model_path, 'rb')}
         response = self.session.post(url, files=files, data={'lora_path': model_target_dir})
         print(response.text)
