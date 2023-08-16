@@ -54,6 +54,14 @@ def set_overwrite(overwrite_:bool):
     global overwrite
     overwrite = overwrite_
     
+def parse_response_or_dict(response_or_dict):
+    """
+    Parses a response or dict
+    """
+    if isinstance(response_or_dict, dict):
+        return response_or_dict
+    return response_or_dict.json()
+
 def sync_api(app:FastAPI):
     """
     Binds sync API with app
@@ -65,7 +73,7 @@ def sync_api(app:FastAPI):
         """
         connection = Connection(target_api_address, auth=auth)
         try:
-            return connection.sync_sd_model(model_path).json()
+            return parse_response_or_dict(connection.sync_sd_model(model_path))
         except Exception as e:
             return {"message": str(e), 'success': False}
     
@@ -76,7 +84,7 @@ def sync_api(app:FastAPI):
         """
         connection = Connection(target_api_address, auth=auth)
         try:
-            return connection.sync_vae_model(model_path).json()
+            return parse_response_or_dict(connection.sync_vae_model(model_path))
         except Exception as e:
             return {"message": str(e), 'success': False}
         
@@ -88,7 +96,7 @@ def sync_api(app:FastAPI):
         """
         connection = Connection(target_api_address, auth=auth)
         try:
-            return connection.sync_lora_model(model_path).json()
+            return parse_response_or_dict(connection.sync_lora_model(model_path))
         except Exception as e:
             return {"message": str(e), 'success': False}
         

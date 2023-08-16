@@ -1,5 +1,6 @@
 import os
 import glob
+from typing import List
 import tqdm
 from pathlib import Path
 import requests
@@ -15,9 +16,24 @@ except (ImportError, ModuleNotFoundError):
 
 
 filepath = Path(os.path.realpath(__file__))
+# check 'extension' is in the path
+if 'extension' not in str(filepath):
+    basepath = filepath.absolute()
+    print("WARN : You are trying to run the script as standalone mode. Some features will be disabled")
+    is_stand_alone = True
+else:
 # get parent of parent directory
-basepath = filepath.parent.parent.parent.parent.absolute() # base webui path
-
+    basepath = filepath.parent.parent.parent.parent.absolute() # base webui path
+    is_stand_alone = False
+    
+def standalone(func):
+    def wrapper(*args, **kwargs):
+        if is_stand_alone:
+            return None
+        return func(*args, **kwargs)
+    return wrapper
+    
+    
 SD_MODEL_PATH = os.path.join(basepath, 'models', 'Stable-diffusion')
 VAE_PATH = os.path.join(basepath, 'models', 'VAE')
 LORA_PATH = os.path.join(basepath, 'models', 'Lora')
@@ -99,10 +115,48 @@ class Connection:
             response = self.session.post(url, files=files, data={model_path_arg: model_target_dir})
         return response
         
+    def upload_lora_to(self, lora_path:str = 'test/test.safetensors', target_path:str = 'test') -> requests.Response:
+        """
+        Uploads lora from absolute path to target_path
+        """
+        url = self.target_ap_address + 'upload_lora_model'
+        real_model_path = os.path.abspath(lora_path)
+        with open(real_model_path, 'rb') as f:
+            response = self.send_data(f, 'lora_path', target_path, url, file_basename=os.path.basename(real_model_path))
+        return response
+    
+    def upload_loras_to(self, lora_paths:list = ['test/test.safetensors'], target_path:str = 'test') -> List[requests.Response]:
+        """
+        Uploads lora from absolute path to target_path
+        """
+        url = self.target_ap_address + 'upload_lora_model'
+        responses = []
+        for lora_path in lora_paths:
+            real_model_path = os.path.abspath(lora_path)
+            with open(real_model_path, 'rb') as f:
+                response = self.send_data(f, 'lora_path', target_path, url, file_basename=os.path.basename(real_model_path))
+                responses.append(response)
+        return responses
+    
+    def upload_loras_glob_to(self, lora_paths:str = 'test/*.safetensors', target_path:str = 'test') -> List[requests.Response]:
+        """
+        Uploads lora from absolute path to target_path
+        """
+        url = self.target_ap_address + 'upload_lora_model'
+        responses = []
+        for lora_path in glob.glob(lora_paths):
+            real_model_path = os.path.abspath(lora_path)
+            with open(real_model_path, 'rb') as f:
+                response = self.send_data(f, 'lora_path', target_path, url, file_basename=os.path.basename(real_model_path))
+                responses.append(response)
+        return responses
+        
     @decorate_check_connection
     def upload_sd_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
             Uploads the model to the server
+            @param model_path: path to the model
+            
         """
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
@@ -137,7 +191,8 @@ class Connection:
         with open(real_model_path, 'rb') as f:
             response = self.send_data(f, 'lora_path', model_target_dir, url, file_basename=os.path.basename(real_model_path))
         return response
-        
+    
+    @standalone
     @decorate_check_connection
     def sync_all_sd_models(self) -> None:
         """
@@ -146,6 +201,7 @@ class Connection:
         for model_path in glob.glob(SD_MODEL_PATH + '/**/*.safetensors', recursive=True):
             self.sync_sd_model(model_path)
             
+    @standalone
     @decorate_check_connection
     def sync_all_vae_models(self) -> None:
         """
@@ -154,6 +210,7 @@ class Connection:
         for model_path in glob.glob(VAE_PATH + '/**/*.safetensors', recursive=True):
             self.sync_vae_model(model_path)
             
+    @standalone
     @decorate_check_connection
     def sync_all_lora_models(self) -> None:
         """
@@ -162,6 +219,7 @@ class Connection:
         for model_path in glob.glob(LORA_PATH + '/**/*.safetensors', recursive=True):
             self.sync_lora_model(model_path)
             
+    @standalone
     @decorate_check_connection
     def sync_everything(self) -> None:
         """
@@ -171,6 +229,7 @@ class Connection:
         self.sync_all_vae_models()
         self.sync_all_lora_models()
         
+    @standalone
     @decorate_check_connection
     def sync_sd_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
@@ -200,6 +259,7 @@ class Connection:
         else:
             raise Exception('Server does not support Model Syncing')
             
+    @standalone
     @decorate_check_connection
     def sync_vae_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
@@ -229,6 +289,7 @@ class Connection:
         else:
             raise Exception('Server does not support Model Syncing')
         
+    @standalone
     @decorate_check_connection
     def sync_lora_model(self, model_path: str = 'test/test.safetensors') -> requests.Response:
         """
@@ -241,7 +302,6 @@ class Connection:
         self_hash_response = self.session.post(self_target_access, data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
-        print(self_response_json)
         self_hash = self_response_json['hash']
         if not self_response_json['success']:
             raise Exception('Server does not have requested model')
