@@ -59,44 +59,44 @@ def sync_api(app:FastAPI):
     Binds sync API with app
     """
     @app.post("/sync/sd_model")
-    def sync_sd_model(target_api_address:str = Form(""), model_path:str = Form("")):
+    def sync_sd_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://<target>/" -F "model_path=<model_name>" http://<this>:<port>/sync/sd_model
         """
-        connection = Connection(target_api_address)
+        connection = Connection(target_api_address, auth=auth)
         connection.sync_sd_model(model_path)
     
     @app.post("/sync/vae_model")
-    def sync_vae_model(target_api_address:str = Form(""), model_path:str = Form("")):
-        connection = Connection(target_api_address)
+    def sync_vae_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
+        connection = Connection(target_api_address, auth=auth)
         connection.sync_vae_model(model_path)
         
     @app.post("/sync/lora_model")
-    def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form("")):
+    def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/lora_model
         """
-        connection = Connection(target_api_address)
+        connection = Connection(target_api_address, auth=auth)
         connection.sync_lora_model(model_path)
         
     @app.post("/sync/all_sd_models")
-    def sync_all_sd_models(target_api_address:str = Form("")):
-        connection = Connection(target_api_address)
+    def sync_all_sd_models(target_api_address:str = Form(""), auth:str = Form("")):
+        connection = Connection(target_api_address, auth=auth)
         connection.sync_all_sd_models()
         
     @app.post("/sync/all_vae_models")
-    def sync_all_vae_models(target_api_address:str = Form("")):
-        connection = Connection(target_api_address)
+    def sync_all_vae_models(target_api_address:str = Form(""), auth:str = Form("")):
+        connection = Connection(target_api_address, auth=auth)
         connection.sync_all_vae_models()
         
     @app.post("/sync/all_lora_models")
-    def sync_all_lora_models(target_api_address:str = Form("")):
-        connection = Connection(target_api_address)
+    def sync_all_lora_models(target_api_address:str = Form(""), auth:str = Form("")):
+        connection = Connection(target_api_address, auth=auth)
         connection.sync_all_lora_models()
         
     @app.post("/sync/all_models")
-    def sync_all_models(target_api_address:str = Form("")):
-        connection = Connection(target_api_address)
+    def sync_all_models(target_api_address:str = Form(""), auth:str = Form("")):
+        connection = Connection(target_api_address, auth=auth)
         connection.sync_everything()
 
 def upload_api(app:FastAPI):
@@ -114,6 +114,9 @@ def upload_api(app:FastAPI):
     @app.post("/upload")
         # test with {'file': open('images/1.png', 'rb')}
     def upload(file: UploadFile = File(...), path: str = Form('./tmp' )):
+        # check if path is valid 'file' not directory
+        if os.path.isdir(path):
+            return {"message": f"Path {path} is a directory, please specify a file", 'success': False}
         try:
             contents = file.file.read()
             with open(file.filename, 'wb') as f:
