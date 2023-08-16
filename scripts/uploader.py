@@ -132,13 +132,14 @@ class Connection:
         server_target_access = 'http://' + self.target_ap_address + 'models/query_hash_sd'
         server_hash_response = self.session.post(server_target_access, data={'path': model_target_dir})
         if server_hash_response.status_code == 200:
-            server_hash = server_hash_response.json()['hash']
-            if server_hash != self_hash:
+            response_json = server_hash_response.json()
+            server_hash = response_json['hash']
+            success = response_json['success']
+            if server_hash != self_hash or not success:
                 # sync
                 self.upload_sd_model(model_path)
         else:
-            # upload
-            self.upload_sd_model(model_path)
+            raise Exception('Server does not support Model Syncing')
             
     @decorate_check_connection
     def sync_vae_model(self, model_path: str = 'test/test.safetensors') -> None:
@@ -156,14 +157,15 @@ class Connection:
         server_target_access = 'http://' + self.target_ap_address + 'models/query_hash_vae'
         server_hash_response = self.session.post(server_target_access, data={'path': model_target_dir})
         if server_hash_response.status_code == 200:
-            server_hash = server_hash_response.json()['hash']
-            if server_hash != self_hash:
+            response_json = server_hash_response.json()
+            server_hash = response_json['hash']
+            success = response_json['success']
+            if server_hash != self_hash or not success:
                 # sync
                 self.upload_vae_model(model_path)
         else:
-            # upload
-            self.upload_vae_model(model_path)
-    
+            raise Exception('Server does not support Model Syncing')
+        
     @decorate_check_connection
     def sync_lora_model(self, model_path: str = 'test/test.safetensors') -> None:
         """
@@ -180,12 +182,13 @@ class Connection:
         server_target_access = 'http://' + self.target_ap_address + 'models/query_hash_lora'
         server_hash_response = self.session.post(server_target_access, data={'path': model_target_dir})
         if server_hash_response.status_code == 200:
-            server_hash = server_hash_response.json()['hash']
-            if server_hash != self_hash:
+            response_json = server_hash_response.json()
+            server_hash = response_json['hash']
+            success = response_json['success']
+            if server_hash != self_hash or not success:
                 # sync
                 self.upload_lora_model(model_path)
         else:
-            # upload
-            self.upload_lora_model(model_path)
+            raise Exception('Server does not support Model Syncing')
     
     

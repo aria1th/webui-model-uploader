@@ -209,7 +209,7 @@ def query_api(app:FastAPI):
         try:
             return {"hash": fast_file_hash(path), 'success': True}
         except FileNotFoundError as e:
-            return {"message": str(e), 'success': False}
+            return {"message": str(e),"hash":"", 'success': False}
     
     @app.post("/models/query_hash_lora")
     def get_hash_lora(path:str = Form("")):
