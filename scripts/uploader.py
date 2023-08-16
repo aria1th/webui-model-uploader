@@ -1,5 +1,4 @@
 import os
-import shutil
 import glob
 import tqdm
 from pathlib import Path
@@ -181,7 +180,7 @@ class Connection:
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
         self_target_access = self.master_ap_address + 'models/query_hash_sd'
-        self_hash_response = self.session.post(self_target_access, data={'path': model_target_dir})
+        self_hash_response = self.session.post(self_target_access, data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hash']
@@ -189,7 +188,7 @@ class Connection:
             raise Exception('Server does not have requested model')
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_sd'
-        server_hash_response = self.session.post(server_target_access, data={'path': model_target_dir})
+        server_hash_response = self.session.post(server_target_access, data={'path': model_path})
         if server_hash_response.status_code == 200:
             response_json = server_hash_response.json()
             server_hash = response_json['hash']
@@ -210,7 +209,7 @@ class Connection:
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
         self_target_access = self.master_ap_address + 'models/query_hash_vae'
-        self_hash_response = self.session.post(self_target_access, data={'path': model_target_dir})
+        self_hash_response = self.session.post(self_target_access, data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hash']
@@ -218,7 +217,7 @@ class Connection:
             raise Exception('Server does not have requested model')
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_vae'
-        server_hash_response = self.session.post(server_target_access, data={'path': model_target_dir})
+        server_hash_response = self.session.post(server_target_access, data={'path': model_path})
         if server_hash_response.status_code == 200:
             response_json = server_hash_response.json()
             server_hash = response_json['hash']
