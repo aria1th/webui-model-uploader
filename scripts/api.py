@@ -13,6 +13,8 @@ basepath = filepath.parent.parent.parent.parent.absolute()
 
 overwrite = False # if True, overwrites existing files
 
+SELF_APP = None
+
 file_caches = {}
 
 def register_cache(file_path:str, cache:str):
@@ -290,6 +292,7 @@ def register_api(_:gr.Blocks, app:FastAPI):
     query_api(app)
     upload_root_api(app)
     sync_api(app)
+    SELF_APP = app
     
     
     

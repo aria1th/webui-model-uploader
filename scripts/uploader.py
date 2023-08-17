@@ -1,10 +1,16 @@
+"""
+    Uploads the model to the server / syncs / etc
+"""
 import os
 import glob
 from typing import List
-import tqdm
 from pathlib import Path
-import requests
 from logging import getLogger
+import tqdm
+import requests
+from fastapi import FastAPI, APIRouter
+
+
 try:
     import requests_toolbelt
     has_toolbelt = True
@@ -14,6 +20,18 @@ except (ImportError, ModuleNotFoundError):
     has_toolbelt = False
 #Session = requests.Session()
 
+SELF_APP = None
+try:
+    from scripts.api import SELF_APP
+except (ImportError, ModuleNotFoundError):
+    pass
+
+PORT = 7860
+try:
+    from modules.shared import cmd_opts
+    PORT = cmd_opts.port
+except (ImportError, ModuleNotFoundError):
+    pass
 
 filepath = Path(os.path.realpath(__file__))
 # check 'extension' is in the path
@@ -27,6 +45,10 @@ else:
     is_stand_alone = False
     
 def standalone(func):
+    """
+    Wrapper that makes function disabled when standalone is on.
+    Some functions expect relative path to 'sync' models.
+    """
     def wrapper(*args, **kwargs):
         if is_stand_alone:
             return None
@@ -56,9 +78,15 @@ def progress_callback(monitor) -> None:
 class Connection:
     """
         Connects and handles the communication with the server
+        standalone example:
+        Connection('http://test.example.api/', "username:password").upload_lora_to('/data3/test/test.safetensors', 'test')
     """
-    master_ap_address = 'http://127.0.0.1:7860/'
+    master_ap_address = f'http://127.0.0.1:{PORT}/'
     def __init__(self, target_ap_address: str = 'http://127.0.0.1:7860/', auth:str = "") -> None:
+        """
+        @param target_ap_address: address of the server
+        @param auth: username:password
+        """
         self.target_ap_address = target_ap_address
         # if not ends with /, add it
         if not self.target_ap_address.endswith('/'):
@@ -70,8 +98,26 @@ class Connection:
         if auth:
             self.session.auth = auth.split(':')
             
+    def create_self_request(self, accessor:str = 'models/query_hash_vae', data= None) -> requests.Response:
+        """
+        Post request to required path
+        """
+        global SELF_APP
+        if SELF_APP is not None:
+            assert isinstance(SELF_APP, FastAPI)
+            assert isinstance(SELF_APP.router, APIRouter)
+        else:
+            # use master ap address
+            target_address = self.master_ap_address + accessor
+            return self.session.post(target_address, data=data)
+        return SELF_APP.router.post(path=accessor,data=data)
+    
     @staticmethod
     def create_progressbar_callback(encoder_obj):
+        """
+        Creates a callback for the progressbar
+        @param encoder_obj: MultipartEncoder object
+        """
         pbar = tqdm.tqdm(total=encoder_obj.len, unit="B", unit_scale=True)
         def callback(monitor):
             if not hasattr(monitor, 'bytes_read'):
@@ -80,6 +126,9 @@ class Connection:
         return callback
         
     def decorate_check_connection(func):
+        """
+        Decorator that checks if the server is running
+        """
         def wrapper(self, *args, **kwargs):
             self.check_connection()
             return func(self, *args, **kwargs)
@@ -238,8 +287,7 @@ class Connection:
         model_target_dirs = model_path.split('/')
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
-        self_target_access = self.master_ap_address + 'models/query_hash_sd'
-        self_hash_response = self.session.post(self_target_access, data={'path': model_path})
+        self_hash_response = self.create_self_request('models/query_hash_sd', data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hash']
@@ -268,8 +316,7 @@ class Connection:
         model_target_dirs = model_path.split('/')
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
-        self_target_access = self.master_ap_address + 'models/query_hash_vae'
-        self_hash_response = self.session.post(self_target_access, data={'path': model_path})
+        self_hash_response = self.create_self_request('models/query_hash_vae', data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hash']
@@ -298,8 +345,7 @@ class Connection:
         model_target_dirs = model_path.split('/')
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
-        self_target_access = self.master_ap_address + 'models/query_hash_lora'
-        self_hash_response = self.session.post(self_target_access, data={'path': model_path})
+        self_hash_response = self.create_self_request('models/query_hash_lora', data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hash']
