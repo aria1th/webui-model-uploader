@@ -185,10 +185,19 @@ def upload_api(app:FastAPI):
     
     @app.post("/upload")
         # test with {'file': open('images/1.png', 'rb')}
-    def upload(file: UploadFile = File(...), path: str = Form('./tmp.fileext' )):
-        # check if path is valid 'file' not directory
-        if os.path.isdir(path):
-            return {"message": f"Path {path} is a directory, please specify a file", 'success': False}
+    def upload(file: UploadFile = File(...), path: str = Form('./tmp'), modeltype:str = Form("")):
+        # get path
+        if modeltype == "sd":
+            path = os.path.join(get_sd_ckpt_dir(), path)
+        elif modeltype == "vae":
+            path = os.path.join(get_vae_ckpt_dir(), path)
+        elif modeltype == "lora":
+            path = os.path.join(get_lora_ckpt_dir(), path)
+        else:
+            return {"message": f"Invalid modeltype {modeltype}", 'success': False}
+        real_file_path = os.path.join(path, file.filename)
+        if os.path.exists(real_file_path) and not overwrite:
+            return {"message": f"File {real_file_path} already exists, set overwrite to True to overwrite", 'success': False}
         try:
             contents = file.file.read()
             with open(file.filename, 'wb') as f:
@@ -199,31 +208,29 @@ def upload_api(app:FastAPI):
             file.file.close()
         # move file to path
         try:
-            if os.path.exists(path) and not overwrite:
-                return {"message": f"File {path} already exists, set overwrite to True to overwrite", 'success': False}
             os.makedirs(path, exist_ok=True)
-            remove_cache(path)
-            if os.path.exists(path) and overwrite:
-                print(f"Removing {path} to overwrite")
-                os.remove(path)
-            shutil.move(file.filename, path) 
+            remove_cache(real_file_path)
+            if os.path.exists(real_file_path) and overwrite:
+                print(f"Removing {real_file_path} to overwrite")
+                os.remove(real_file_path)
+            shutil.move(file.filename, real_file_path) 
         except Exception as e:
-            return {"message": f"There was an error moving the {file.filename} to {path}", 'success': False}
+            return {"message": f"There was an error moving the {file.filename} to {real_file_path}", 'success': False}
 
-        return {"message": f"Successfully uploaded {file.filename} to {path}", 'success': True}
+        return {"message": f"Successfully uploaded {file.filename} to {real_file_path}", 'success': True}
 
     @app.post("/upload_sd_model")
     def upload_sd_model(file:UploadFile = File(...), sd_path:str= Form("")):
         # upload file to <root>/models/Stable-diffusion/<sd_model_name>/<sd_model_name>
         # sd_model_name may be a.safetensors or /sd_path/../<model_name>
         assert '../' not in sd_path, "sd_model_name must not contain ../"
-        return upload(file, os.path.join(get_sd_ckpt_dir(), sd_path))
+        return upload(file, os.path.join(get_sd_ckpt_dir(), sd_path), "sd")
         
     @app.post("/upload_vae_model")
     def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form("")):
         # upload file to <root>/models/VAE/<vae_path>/<vae_model_name>
         assert '../' not in vae_path, "vae_path must not contain ../"
-        return upload(file, os.path.join(get_vae_ckpt_dir(), vae_path))
+        return upload(file, os.path.join(get_vae_ckpt_dir(), vae_path), "vae")
 
     @app.post("/upload_lora_model")
     def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form("")):
@@ -234,7 +241,7 @@ def upload_api(app:FastAPI):
         # l /lora_path/<model_name>
         # assert lora_model_name does not contain ../
         assert '../' not in lora_path, "lora_path must not contain ../"
-        return upload(file, os.path.join(get_lora_ckpt_dir(), lora_path))
+        return upload(file, os.path.join(get_lora_ckpt_dir(), lora_path), "lora")
     # can be used with curl
     #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
     #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=" http://127.0.0.1:7860/upload_lora_model
