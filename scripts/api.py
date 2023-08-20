@@ -198,6 +198,8 @@ def upload_api(app:FastAPI):
         real_file_path = os.path.join(path, file.filename)
         if os.path.exists(real_file_path) and not overwrite:
             return {"message": f"File {real_file_path} already exists, set overwrite to True to overwrite", 'success': False}
+        elif os.path.isdir(real_file_path):
+            return {"message": f"File {real_file_path} is a directory", 'success': False}
         try:
             contents = file.file.read()
             with open(file.filename, 'wb') as f:
