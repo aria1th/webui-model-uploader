@@ -6,6 +6,7 @@ from fastapi import File, UploadFile, FastAPI, Form
 import gradio as gr
 from pathlib import Path
 from scripts.uploader import Connection
+from scripts.download_models import download_controlnet_xl_models, download_controlnet_v11_models
 from functools import lru_cache
 import json
 
@@ -23,6 +24,43 @@ if os.path.exists(os.path.join(basepath, 'file_caches.json')):
 else:
     file_caches = {}
     
+def call_download_controlnet_xl():
+    try:
+        from modules.shared import opts
+        cnet_models_path = opts.data.get('control_net_modules_path', None)
+        if not cnet_models_path:
+            cnet_extension_path = os.path.join(basepath, 'extensions', 'sd-webui-controlnet')
+            if not os.path.exists(cnet_extension_path):
+                print(f"Could not find controlnet extension at {cnet_extension_path}")
+                return False
+            cnet_models_path = os.path.join(cnet_extension_path, 'models')
+        if not os.path.exists(cnet_models_path):
+            print(f"Could not find controlnet models at {cnet_models_path}")
+            return False
+        download_controlnet_xl_models(cnet_models_path)
+        return True
+    except Exception as e:
+        print(f"Could not download controlnet models: {e}")
+        return False
+    
+def call_download_controlnet_v11():
+    try:
+        from modules.shared import opts
+        cnet_models_path = opts.data.get('control_net_modules_path', None)
+        if not cnet_models_path:
+            cnet_extension_path = os.path.join(basepath, 'extensions', 'sd-webui-controlnet')
+            if not os.path.exists(cnet_extension_path):
+                print(f"Could not find controlnet extension at {cnet_extension_path}")
+                return False
+            cnet_models_path = os.path.join(cnet_extension_path, 'models')
+        if not os.path.exists(cnet_models_path):
+            print(f"Could not find controlnet models at {cnet_models_path}")
+            return False
+        download_controlnet_v11_models(cnet_models_path)
+        return True
+    except Exception as e:
+        print(f"Could not download controlnet models: {e}")
+        return False
 
 @lru_cache(maxsize=40)
 def get_sd_ckpt_dir() -> str:
@@ -317,6 +355,35 @@ def fast_file_hash(file_path:str, size_to_read:int=1<<31) -> str:
     return hashvalue
     
     
+def download_controlnet_models_api(app:FastAPI):
+    """
+    Bind download_controlnet_models API to app
+    """
+    
+    @app.post("/download_controlnet_models/xl")
+    def download_controlnet_models_api():
+        """
+        Downloads controlnet models to <root>/models/controlnet/
+        """
+        # curl -X POST http://127.0.0.1:7860/download_controlnet_models/xl
+        result = call_download_controlnet_xl()
+        if result:
+            return {"message": "Successfully downloaded controlnet models XL", 'success': True}
+        else:
+            return {"message": "Could not download controlnet models XL", 'success': False}
+        
+    @app.post("/download_controlnet_models/v11")
+    def download_controlnet_models_api():
+        """
+        Downloads controlnet models to <root>/models/controlnet/
+        """
+        # curl -X POST http://127.0.0.1:7860/download_controlnet_models/v11
+        result = call_download_controlnet_v11()
+        if result:
+            return {"message": "Successfully downloaded controlnet models v11", 'success': True}
+        else:
+            return {"message": "Could not download controlnet models v11", 'success': False}
+        
 
 def query_api(app:FastAPI):
     """
@@ -474,6 +541,7 @@ def register_api(_:gr.Blocks, app:FastAPI):
     upload_root_api(app)
     sync_api(app)
     remove_cache_api(app)
+    download_controlnet_models_api(app)
     SELF_APP = app
     
     
