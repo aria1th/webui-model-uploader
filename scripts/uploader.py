@@ -9,7 +9,7 @@ from logging import getLogger
 import tqdm
 import requests
 from fastapi import FastAPI, APIRouter
-
+from scripts.api import get_lora_ckpt_dir, get_sd_ckpt_dir, get_textual_inversion_dir, get_vae_ckpt_dir
 
 try:
     import requests_toolbelt
@@ -54,11 +54,6 @@ def standalone(func):
             return None
         return func(*args, **kwargs)
     return wrapper
-    
-    
-SD_MODEL_PATH = os.path.join(basepath, 'models', 'Stable-diffusion')
-VAE_PATH = os.path.join(basepath, 'models', 'VAE')
-LORA_PATH = os.path.join(basepath, 'models', 'Lora')
 
 #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
 def join_path(path1 : str, path2 : str) -> str:
@@ -210,7 +205,7 @@ class Connection:
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_sd_model'
-        real_model_path = join_path(SD_MODEL_PATH, model_path)
+        real_model_path = join_path(get_sd_ckpt_dir(), model_path)
         with open(real_model_path, 'rb') as f:
             response = self.send_data(f, 'sd_path', model_target_dir, url, file_basename=os.path.basename(real_model_path))
         return response
@@ -223,7 +218,7 @@ class Connection:
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_vae_model'
-        real_model_path = join_path(VAE_PATH, model_path)
+        real_model_path = join_path(get_vae_ckpt_dir(), model_path)
         with open(real_model_path, 'rb') as f:
             response = self.send_data(f, 'vae_path', model_target_dir, url, file_basename=os.path.basename(real_model_path))
         return response
@@ -236,9 +231,22 @@ class Connection:
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_lora_model'
-        real_model_path = join_path(LORA_PATH, model_path)
+        real_model_path = join_path(get_lora_ckpt_dir(), model_path)
         with open(real_model_path, 'rb') as f:
             response = self.send_data(f, 'lora_path', model_target_dir, url, file_basename=os.path.basename(real_model_path))
+        return response
+    
+    @decorate_check_connection
+    def upload_textual_inversion_model(self, model_path: str = 'test/test.pt') -> requests.Response:
+        """
+            Uploads the model to the server
+        """
+        model_target_dirs = model_path.split('/')[:-1]
+        model_target_dir = '/'.join(model_target_dirs)
+        url = self.target_ap_address + 'upload_textual_inversion_model'
+        real_model_path = join_path(get_textual_inversion_dir(), model_path)
+        with open(real_model_path, 'rb') as f:
+            response = self.send_data(f, 'textual_inversion_path', model_target_dir, url, file_basename=os.path.basename(real_model_path))
         return response
     
     @standalone
@@ -247,7 +255,7 @@ class Connection:
         """
             Syncs all models with the server
         """
-        for model_path in glob.glob(SD_MODEL_PATH + '/**/*.safetensors', recursive=True):
+        for model_path in glob.glob(get_sd_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_sd_model(model_path)
             
     @standalone
@@ -256,7 +264,7 @@ class Connection:
         """
             Syncs all models with the server
         """
-        for model_path in glob.glob(VAE_PATH + '/**/*.safetensors', recursive=True):
+        for model_path in glob.glob(get_vae_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_vae_model(model_path)
             
     @standalone
@@ -265,8 +273,17 @@ class Connection:
         """
             Syncs all models with the server
         """
-        for model_path in glob.glob(LORA_PATH + '/**/*.safetensors', recursive=True):
+        for model_path in glob.glob(get_lora_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_lora_model(model_path)
+            
+    @standalone
+    @decorate_check_connection
+    def sync_all_textual_inversion_models(self) -> None:
+        """
+            Syncs all models with the server
+        """
+        for model_path in glob.glob(get_textual_inversion_dir() + '/**/*.pt', recursive=True):
+            self.sync_textual_inversion_model(model_path)
             
     @standalone
     @decorate_check_connection
@@ -277,6 +294,7 @@ class Connection:
         self.sync_all_sd_models()
         self.sync_all_vae_models()
         self.sync_all_lora_models()
+        self.sync_all_textual_inversion_models()
         
     @standalone
     @decorate_check_connection
@@ -365,4 +383,32 @@ class Connection:
         else:
             raise Exception('Server does not support Model Syncing')
     
-    
+    @standalone
+    @decorate_check_connection
+    def sync_textual_inversion_model(self, model_path:str = 'test/test.pt'):
+        """
+            Syncs the model with the server
+        """
+        
+        model_target_dirs = model_path.split('/')
+        model_path = '/'.join(model_target_dirs)
+        # query hash to self and server
+        self_hash_response = self.create_self_request('models/query_hash_textual_inversion', data={'path': model_path})
+        # {'hash': '1234567890'}
+        self_response_json = self_hash_response.json()
+        self_hash = self_response_json['hash']
+        if not self_response_json['success']:
+            raise Exception('Server does not have requested model')
+        # server
+        server_target_access = self.target_ap_address + 'models/query_hash_textual_inversion'
+        server_hash_response = self.session.post(server_target_access, data={'path': model_path})
+        if server_hash_response.status_code == 200:
+            response_json = server_hash_response.json()
+            server_hash = response_json['hash']
+            success = response_json['success']
+            if server_hash != self_hash or not success:
+                # sync
+                return self.upload_textual_inversion_model(model_path)
+            return {"message": "Ther file hash matched with request", 'success': True}
+        else:
+            raise Exception('Server does not support Model Syncing')

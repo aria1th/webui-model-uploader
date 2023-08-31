@@ -98,6 +98,18 @@ def get_lora_ckpt_dir() -> str:
     assert os.path.exists(ckpt_dir), f"Could not find ckpt_dir {ckpt_dir}"
     return ckpt_dir
 
+@lru_cache(maxsize=40)
+def get_textual_inversion_dir() -> str:
+    try:
+        from modules.shared import cmd_opts
+        ckpt_dir = cmd_opts.embeddings_dir
+    except (ModuleNotFoundError, ImportError):
+        ckpt_dir = os.path.join(basepath, 'embeddings')
+    if ckpt_dir is None:
+        ckpt_dir = os.path.join(basepath, 'embeddings')
+    assert os.path.exists(ckpt_dir), f"Could not find ckpt_dir {ckpt_dir}"
+    return ckpt_dir
+
 def register_cache(file_path:str, cache:str):
     """
     Registers a cache for a file path
@@ -192,6 +204,17 @@ def sync_api(app:FastAPI):
         except Exception as e:
             return {"message": str(e), 'success': False}
         
+    @app.post("/sync/textual_inversion_model")
+    def sync_textual_inversion_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
+        """
+        curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/textual_inversion_model
+        """
+        connection = Connection(target_api_address, auth=auth)
+        try:
+            return parse_response_or_dict(connection.sync_textual_inversion_model(model_path))
+        except Exception as e:
+            return {"message": str(e), 'success': False}
+        
     @app.post("/sync/all_sd_models")
     def sync_all_sd_models(target_api_address:str = Form(""), auth:str = Form("")):
         """
@@ -246,6 +269,35 @@ def remove_cache_api(app:FastAPI):
         else:
             return {"message": f"Could not find cache for {file_path}", 'success': False}
         
+def upload_txt_api(app:FastAPI):
+    """
+    Binds upload_txt API to app
+    This is for receiving text files
+    """
+    
+    @app.post("/upload/dynamic_prompts")
+    def upload_dynamic_prompts(text:str = Form(""), path:str = Form("")):
+        # curl -X POST -F "text=hello" -F "path=hello.txt" http://example.com/upload/dynamic_prompts
+        # save to extensions\sd-dynamic-prompts\wildcards
+        # check if sd-dynamic-prompts exists
+        if not os.path.exists(os.path.join(basepath, 'extensions', 'sd-dynamic-prompts')):
+            return {"message": "Could not find sd-dynamic-prompts extension", 'success': False}
+        if path is None or path == "":
+            # get random path
+            random_txt_path = uuid.uuid4() + ".txt"
+            path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', random_txt_path)
+        else:
+            path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', path)
+        # save to path
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w') as f:
+                f.write(text)
+        except Exception as e:
+            return {"message": str(e), 'success': False}
+        return {"message": f"Successfully saved text to {path}", 'success': True}
+    
+        
 def upload_api(app:FastAPI):
     """
     Binds API to app
@@ -269,6 +321,8 @@ def upload_api(app:FastAPI):
             path = os.path.join(get_vae_ckpt_dir(), path)
         elif modeltype == "lora":
             path = os.path.join(get_lora_ckpt_dir(), path)
+        elif modeltype == "textual_inversion":
+            path = os.path.join(get_textual_inversion_dir(), path)
         else:
             return {"message": f"Invalid modeltype {modeltype}", 'success': False}
         real_file_path = os.path.join(path, file.filename)
@@ -302,13 +356,13 @@ def upload_api(app:FastAPI):
         # upload file to <root>/models/Stable-diffusion/<sd_model_name>/<sd_model_name>
         # sd_model_name may be a.safetensors or /sd_path/../<model_name>
         assert '../' not in sd_path, "sd_model_name must not contain ../"
-        return upload(file, os.path.join(get_sd_ckpt_dir(), sd_path), "sd")
+        return upload(file, sd_path, "sd")
         
     @app.post("/upload_vae_model")
     def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form("")):
         # upload file to <root>/models/VAE/<vae_path>/<vae_model_name>
         assert '../' not in vae_path, "vae_path must not contain ../"
-        return upload(file, os.path.join(get_vae_ckpt_dir(), vae_path), "vae")
+        return upload(file, vae_path, "vae")
 
     @app.post("/upload_lora_model")
     def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form("")):
@@ -319,7 +373,19 @@ def upload_api(app:FastAPI):
         # l /lora_path/<model_name>
         # assert lora_model_name does not contain ../
         assert '../' not in lora_path, "lora_path must not contain ../"
-        return upload(file, os.path.join(get_lora_ckpt_dir(), lora_path), "lora")
+        return upload(file, lora_path, "lora")
+    
+    @app.post("/upload_textual_inversion_model")
+    def upload_textual_inversion_model(file:UploadFile = File(...), textual_inversion_path:str = Form("")):
+        """
+        Uploads a textual inversion model to <root>/embeddings/<textual_inversion_path>/<textual_inversion_model_name>
+        """
+        # upload file to <root>/embeddings/<textual_inversion_path>/<textual_inversion_model_name>
+        # l /textual_inversion_path/<model_name>
+        # assert textual_inversion_model_name does not contain ../
+        assert '../' not in textual_inversion_path, "textual_inversion_path must not contain ../"
+        return upload(file, textual_inversion_path, "textual_inversion")
+    
     # can be used with curl
     #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
     #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=" http://127.0.0.1:7860/upload_lora_model
@@ -450,6 +516,16 @@ def query_api(app:FastAPI):
         """
         path = os.path.join(get_sd_ckpt_dir(), path)
         return wrap_return_hash(path, size_to_read=size_to_read)
+    
+    @app.post("/models/query_hash_textual_inversion")
+    def get_hash_textual_inversion(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns the hash of the file at path.
+        path may be <model_name> (to get embeddings/<model_name>)
+        curl -X POST -F "path=some_path/data.safetensors" "http://
+        """
+        path = os.path.join(get_textual_inversion_dir(), path)
+        return wrap_return_hash(path, size_to_read=size_to_read)
 
     
     @app.post("/models/query_hash_lora_all")
@@ -516,6 +592,27 @@ def query_api(app:FastAPI):
         json_response['hashes'] = walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
         return json_response
     
+    @app.post("/models/query_hash_textual_inversion_all")
+    def get_hash_textual_inversion_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns all hashes of files in path.
+        path may be some folder path
+        """
+        json_response = {'success' : False}
+        if path is None or path == "":
+            path = get_textual_inversion_dir()
+        else:
+            path = os.path.join(get_textual_inversion_dir(), path)
+        if not os.path.exists(path):
+            json_response['message'] = f"Path {path} does not exist"
+            return json_response
+        if not os.path.isdir(path):
+            json_response['message'] = f"Path {path} is not a directory"
+            return json_response
+        json_response['success'] = True
+        json_response['hashes'] = walk_get_hashes(path, get_textual_inversion_dir(), size_to_read=size_to_read)
+        return json_response
+    
     @app.post("/models/query_hash_all")
     def get_hash_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
@@ -523,14 +620,16 @@ def query_api(app:FastAPI):
         path may be some folder path
         """
         json_response_merged = {'success' : False}
-        hashes = {'lora':None, 'vae':None, 'sd':None}
+        hashes = {'lora':None, 'vae':None, 'sd':None, 'textual_inversion':None}
         json_response_merged['hashes'] = hashes
         lora_hashes_result = get_hash_lora_all(path, size_to_read=size_to_read)
         vae_hashes_result = get_hash_vae_all(path, size_to_read=size_to_read)
         sd_hashes_result = get_hash_sd_all(path, size_to_read=size_to_read)
+        textual_inversion_hashes_result = get_hash_textual_inversion_all(path, size_to_read=size_to_read)
         hashes['lora'] = lora_hashes_result['hashes']
         hashes['vae'] = vae_hashes_result['hashes']
         hashes['sd'] = sd_hashes_result['hashes']
+        hashes['textual_inversion'] = textual_inversion_hashes_result['hashes']
         json_response_merged['success'] = True
         return json_response_merged
     
