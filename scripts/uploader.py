@@ -8,7 +8,9 @@ from pathlib import Path
 from logging import getLogger
 import tqdm
 import requests
+from functools import lru_cache
 from fastapi import FastAPI, APIRouter
+from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir
 
 try:
     import requests_toolbelt
@@ -19,20 +21,27 @@ except (ImportError, ModuleNotFoundError):
     has_toolbelt = False
 #Session = requests.Session()
 
-SELF_APP = None
-try:
-    from scripts.api import SELF_APP
-except (ImportError, ModuleNotFoundError):
-    pass
-
-PORT = 7860
-try:
-    from modules.shared import cmd_opts
-    PORT = cmd_opts.port
-except (ImportError, ModuleNotFoundError):
-    pass
+@lru_cache(maxsize=1)
+def get_self_app():
+    SELF_APP = None
+    try:
+        from scripts.api import SELF_APP
+        return SELF_APP
+    except (ImportError, ModuleNotFoundError) as e:
+        getLogger(__name__).warning(str(e))
+        return None
+@lru_cache(maxsize=1)
+def get_port():
+    try:
+        from modules.shared import cmd_opts
+        return cmd_opts.port
+    except (ImportError, ModuleNotFoundError):
+        return 7860
+    
 
 filepath = Path(os.path.realpath(__file__))
+basepath = None
+is_stand_alone = False
 # check 'extension' is in the path
 if 'extension' not in str(filepath):
     basepath = filepath.absolute()
@@ -75,7 +84,13 @@ class Connection:
         standalone example:
         Connection('http://test.example.api/', "username:password").upload_lora_to('/data3/test/test.safetensors', 'test')
     """
-    master_ap_address = f'http://127.0.0.1:{PORT}/'
+    
+    def get_master_ap_address(self):
+        """
+        Returns the master ap address
+        """
+        return f'http://127.0.0.1:{get_port()}/'
+    
     def __init__(self, target_ap_address: str = 'http://127.0.0.1:7860/', auth:str = "") -> None:
         """
         @param target_ap_address: address of the server
@@ -96,13 +111,13 @@ class Connection:
         """
         Post request to required path
         """
-        global SELF_APP
+        SELF_APP = get_self_app()
         if SELF_APP is not None:
             assert isinstance(SELF_APP, FastAPI)
             assert isinstance(SELF_APP.router, APIRouter)
         else:
             # use master ap address
-            target_address = self.master_ap_address + accessor
+            target_address = self.get_master_ap_address() + accessor
             return self.session.post(target_address, data=data)
         return SELF_APP.router.post(path=accessor,data=data)
     
@@ -201,7 +216,6 @@ class Connection:
             @param model_path: path to the model
             
         """
-        from scripts.api import get_sd_ckpt_dir
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_sd_model'
@@ -215,7 +229,7 @@ class Connection:
         """
             Uploads the model to the server
         """
-        from scripts.api import get_vae_ckpt_dir
+        
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_vae_model'
@@ -229,7 +243,7 @@ class Connection:
         """
             Uploads the model to the server
         """
-        from scripts.api import get_lora_ckpt_dir
+        
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_lora_model'
@@ -243,7 +257,7 @@ class Connection:
         """
             Uploads the model to the server
         """
-        from scripts.api import get_textual_inversion_dir
+        
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_textual_inversion_model'
@@ -258,7 +272,7 @@ class Connection:
         """
             Syncs all models with the server
         """
-        from scripts.api import get_sd_ckpt_dir
+        
         for model_path in glob.glob(get_sd_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_sd_model(model_path)
             
@@ -268,7 +282,7 @@ class Connection:
         """
             Syncs all models with the server
         """
-        from scripts.api import get_vae_ckpt_dir
+        
         for model_path in glob.glob(get_vae_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_vae_model(model_path)
             
@@ -278,7 +292,7 @@ class Connection:
         """
             Syncs all models with the server
         """
-        from scripts.api import get_lora_ckpt_dir
+        
         for model_path in glob.glob(get_lora_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_lora_model(model_path)
             
@@ -288,7 +302,7 @@ class Connection:
         """
             Syncs all models with the server
         """
-        from scripts.api import get_textual_inversion_dir
+        
         for model_path in glob.glob(get_textual_inversion_dir() + '/**/*.pt', recursive=True):
             self.sync_textual_inversion_model(model_path)
             
@@ -315,7 +329,7 @@ class Connection:
         self_hash_response = self.create_self_request('models/query_hash_sd', data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
-        self_hash = self_response_json['hash']
+        self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
             raise Exception('Server does not have requested model')
         # server
@@ -323,7 +337,7 @@ class Connection:
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
         if server_hash_response.status_code == 200:
             response_json = server_hash_response.json()
-            server_hash = response_json['hash']
+            server_hash = response_json['hashvalue']
             success = response_json['success']
             if server_hash != self_hash or not success:
                 # sync
@@ -344,7 +358,7 @@ class Connection:
         self_hash_response = self.create_self_request('models/query_hash_vae', data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
-        self_hash = self_response_json['hash']
+        self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
             raise Exception('Server does not have requested model')
         # server
@@ -352,7 +366,7 @@ class Connection:
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
         if server_hash_response.status_code == 200:
             response_json = server_hash_response.json()
-            server_hash = response_json['hash']
+            server_hash = response_json['hashvalue']
             success = response_json['success']
             if server_hash != self_hash or not success:
                 # sync
@@ -373,7 +387,7 @@ class Connection:
         self_hash_response = self.create_self_request('models/query_hash_lora', data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
-        self_hash = self_response_json['hash']
+        self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
             raise Exception('Server does not have requested model')
         # server
@@ -381,7 +395,7 @@ class Connection:
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
         if server_hash_response.status_code == 200:
             response_json = server_hash_response.json()
-            server_hash = response_json['hash']
+            server_hash = response_json['hashvalue']
             success = response_json['success']
             if server_hash != self_hash or not success:
                 # sync
@@ -403,7 +417,7 @@ class Connection:
         self_hash_response = self.create_self_request('models/query_hash_embedding', data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
-        self_hash = self_response_json['hash']
+        self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
             raise Exception('Server does not have requested model')
         # server
@@ -411,7 +425,7 @@ class Connection:
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
         if server_hash_response.status_code == 200:
             response_json = server_hash_response.json()
-            server_hash = response_json['hash']
+            server_hash = response_json['hashvalue']
             success = response_json['success']
             if server_hash != self_hash or not success:
                 # sync
