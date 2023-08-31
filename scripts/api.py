@@ -253,7 +253,7 @@ def upload_txt_api(app:FastAPI):
     def upload_dynamic_prompts(text: UploadFile = File(...), path: str = Form("")):
         """
         Saves text to path
-        curl -X POST -F "text=hello" -F "path=hello.txt" http://test.api.address/upload_dynamic_prompts
+        curl -X POST -F "text=@C:\\Users\\UserName\\Downloads\\test.txt" -F "path=dynamic_prompts/test.txt" http://localhost:7860/upload_dynamic_prompts
         """
         # save to extensions\sd-dynamic-prompts\wildcards
         # check if sd-dynamic-prompts exists
