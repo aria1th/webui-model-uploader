@@ -253,13 +253,14 @@ def upload_txt_api(app:FastAPI):
     def upload_dynamic_prompts(text:str = Form(""), path:str = Form("")):
         """
         Saves text to path
-        curl -X POST -F "text=hello" -F "path=hello.txt" http://example.com/upload_dynamic_prompts
+        curl -X POST -F "text=hello" -F "path=hello.txt" http://test.api.address/upload_dynamic_prompts
         """
-        # curl -X POST -F "text=hello" -F "path=hello.txt" http://example.com/upload_dynamic_prompts
         # save to extensions\sd-dynamic-prompts\wildcards
         # check if sd-dynamic-prompts exists
         if not os.path.exists(os.path.join(basepath, 'extensions', 'sd-dynamic-prompts')):
             return {"message": "Could not find sd-dynamic-prompts extension", 'success': False}
+        if text is None or text == "":
+            return {"message": "text must not be empty", 'success': False}
         if path is None or path == "":
             # get random path
             import uuid
