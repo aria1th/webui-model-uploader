@@ -284,6 +284,7 @@ def upload_txt_api(app:FastAPI):
             return {"message": "Could not find sd-dynamic-prompts extension", 'success': False}
         if path is None or path == "":
             # get random path
+            import uuid
             random_txt_path = uuid.uuid4() + ".txt"
             path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', random_txt_path)
         else:
