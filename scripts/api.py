@@ -204,10 +204,10 @@ def sync_api(app:FastAPI):
         except Exception as e:
             return {"message": str(e), 'success': False}
         
-    @app.post("/sync/textual_inversion_model")
+    @app.post("/sync/embedding")
     def sync_textual_inversion_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         """
-        curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/textual_inversion_model
+        curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/embedding
         """
         connection = Connection(target_api_address, auth=auth)
         try:
@@ -275,9 +275,9 @@ def upload_txt_api(app:FastAPI):
     This is for receiving text files
     """
     
-    @app.post("/upload/dynamic_prompts")
+    @app.post("/upload_dynamic_prompts")
     def upload_dynamic_prompts(text:str = Form(""), path:str = Form("")):
-        # curl -X POST -F "text=hello" -F "path=hello.txt" http://example.com/upload/dynamic_prompts
+        # curl -X POST -F "text=hello" -F "path=hello.txt" http://example.com/upload_dynamic_prompts
         # save to extensions\sd-dynamic-prompts\wildcards
         # check if sd-dynamic-prompts exists
         if not os.path.exists(os.path.join(basepath, 'extensions', 'sd-dynamic-prompts')):
@@ -375,7 +375,7 @@ def upload_api(app:FastAPI):
         assert '../' not in lora_path, "lora_path must not contain ../"
         return upload(file, lora_path, "lora")
     
-    @app.post("/upload_textual_inversion_model")
+    @app.post("/upload_embedding")
     def upload_textual_inversion_model(file:UploadFile = File(...), textual_inversion_path:str = Form("")):
         """
         Uploads a textual inversion model to <root>/embeddings/<textual_inversion_path>/<textual_inversion_model_name>
@@ -517,12 +517,12 @@ def query_api(app:FastAPI):
         path = os.path.join(get_sd_ckpt_dir(), path)
         return wrap_return_hash(path, size_to_read=size_to_read)
     
-    @app.post("/models/query_hash_textual_inversion")
+    @app.post("/models/query_hash_embedding")
     def get_hash_textual_inversion(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get embeddings/<model_name>)
-        curl -X POST -F "path=some_path/data.safetensors" "http://
+        curl -X POST -F "path=some_path/data.safetensors" "http://127.0.0.1:7860/models/query_hash_embedding"
         """
         path = os.path.join(get_textual_inversion_dir(), path)
         return wrap_return_hash(path, size_to_read=size_to_read)
@@ -592,7 +592,7 @@ def query_api(app:FastAPI):
         json_response['hashes'] = walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
         return json_response
     
-    @app.post("/models/query_hash_textual_inversion_all")
+    @app.post("/models/query_hash_embedding_all")
     def get_hash_textual_inversion_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns all hashes of files in path.
@@ -641,6 +641,7 @@ def register_api(_:gr.Blocks, app:FastAPI):
     sync_api(app)
     remove_cache_api(app)
     download_controlnet_models_api(app)
+    upload_txt_api(app)
     SELF_APP = app
     
     

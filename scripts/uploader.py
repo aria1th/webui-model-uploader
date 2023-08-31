@@ -400,14 +400,14 @@ class Connection:
         model_target_dirs = model_path.split('/')
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
-        self_hash_response = self.create_self_request('models/query_hash_textual_inversion', data={'path': model_path})
+        self_hash_response = self.create_self_request('models/query_hash_embedding', data={'path': model_path})
         # {'hash': '1234567890'}
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hash']
         if not self_response_json['success']:
             raise Exception('Server does not have requested model')
         # server
-        server_target_access = self.target_ap_address + 'models/query_hash_textual_inversion'
+        server_target_access = self.target_ap_address + 'models/query_hash_embedding'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
         if server_hash_response.status_code == 200:
             response_json = server_hash_response.json()
