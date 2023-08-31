@@ -250,7 +250,7 @@ def upload_txt_api(app:FastAPI):
     """
     
     @app.post("/upload_dynamic_prompts", response_model=BasicModelResponse)
-    def upload_dynamic_prompts(text:str = Form(""), path:str = Form("")):
+    def upload_dynamic_prompts(text: UploadFile = File(...), path: str = Form("")):
         """
         Saves text to path
         curl -X POST -F "text=hello" -F "path=hello.txt" http://test.api.address/upload_dynamic_prompts
@@ -259,23 +259,16 @@ def upload_txt_api(app:FastAPI):
         # check if sd-dynamic-prompts exists
         if not os.path.exists(os.path.join(basepath, 'extensions', 'sd-dynamic-prompts')):
             return {"message": "Could not find sd-dynamic-prompts extension", 'success': False}
-        if text is None or text == "":
-            return {"message": "text must not be empty", 'success': False}
-        if path is None or path == "":
-            # get random path
-            import uuid
-            random_txt_path = str(uuid.uuid4()) + ".txt"
-            path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', random_txt_path)
-        else:
-            path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', path)
-        # save to path
+        
+        real_file_path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', path, text.filename)
+        os.makedirs(os.path.dirname(real_file_path), exist_ok=True)
         try:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, 'w') as f:
-                f.write(text)
+            contents = text.file.read()
+            with open(real_file_path, 'wb') as f:
+                f.write(contents)
         except Exception as e:
-            return {"message": str(e), 'success': False}
-        return {"message": f"Successfully saved text to {path}", 'success': True}
+            return {"message": "There was an error uploading the file", 'success': False}
+        return {"message": f"Successfully saved text to {real_file_path}", 'success': True}
     
         
 def upload_api(app:FastAPI):
