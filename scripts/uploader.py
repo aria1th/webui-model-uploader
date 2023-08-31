@@ -9,7 +9,6 @@ from logging import getLogger
 import tqdm
 import requests
 from fastapi import FastAPI, APIRouter
-from scripts.api import get_lora_ckpt_dir, get_sd_ckpt_dir, get_textual_inversion_dir, get_vae_ckpt_dir
 
 try:
     import requests_toolbelt
@@ -202,6 +201,7 @@ class Connection:
             @param model_path: path to the model
             
         """
+        from scripts.api import get_sd_ckpt_dir
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_sd_model'
@@ -215,6 +215,7 @@ class Connection:
         """
             Uploads the model to the server
         """
+        from scripts.api import get_vae_ckpt_dir
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_vae_model'
@@ -228,6 +229,7 @@ class Connection:
         """
             Uploads the model to the server
         """
+        from scripts.api import get_lora_ckpt_dir
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_lora_model'
@@ -241,6 +243,7 @@ class Connection:
         """
             Uploads the model to the server
         """
+        from scripts.api import get_textual_inversion_dir
         model_target_dirs = model_path.split('/')[:-1]
         model_target_dir = '/'.join(model_target_dirs)
         url = self.target_ap_address + 'upload_textual_inversion_model'
@@ -255,6 +258,7 @@ class Connection:
         """
             Syncs all models with the server
         """
+        from scripts.api import get_sd_ckpt_dir
         for model_path in glob.glob(get_sd_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_sd_model(model_path)
             
@@ -264,6 +268,7 @@ class Connection:
         """
             Syncs all models with the server
         """
+        from scripts.api import get_vae_ckpt_dir
         for model_path in glob.glob(get_vae_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_vae_model(model_path)
             
@@ -273,6 +278,7 @@ class Connection:
         """
             Syncs all models with the server
         """
+        from scripts.api import get_lora_ckpt_dir
         for model_path in glob.glob(get_lora_ckpt_dir() + '/**/*.safetensors', recursive=True):
             self.sync_lora_model(model_path)
             
@@ -282,6 +288,7 @@ class Connection:
         """
             Syncs all models with the server
         """
+        from scripts.api import get_textual_inversion_dir
         for model_path in glob.glob(get_textual_inversion_dir() + '/**/*.pt', recursive=True):
             self.sync_textual_inversion_model(model_path)
             
