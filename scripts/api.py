@@ -263,7 +263,7 @@ def upload_txt_api(app:FastAPI):
         if path is None or path == "":
             # get random path
             import uuid
-            random_txt_path = uuid.uuid4() + ".txt"
+            random_txt_path = str(uuid.uuid4()) + ".txt"
             path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', random_txt_path)
         else:
             path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', path)
