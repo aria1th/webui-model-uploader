@@ -131,6 +131,79 @@ def parse_response_or_dict(response_or_dict):
         return response_or_dict
     return response_or_dict.json()
 
+def delete_api(app:FastAPI):
+    """
+    Binds delete API to app
+    """
+    def check_file_exists(file_path:str) -> bool:
+        """
+        Checks if file exists
+        """
+        if os.path.exists(file_path):
+            # check if not a directory
+            if not os.path.isdir(file_path):
+                return True
+        return False
+    
+    def delete_file(file_path:str) -> bool:
+        """
+        Deletes file
+        """
+        if check_file_exists(file_path):
+            os.remove(file_path)
+            return True
+        return False
+    
+    @app.post("/delete/sd_model", response_model=BasicModelResponse)
+    def delete_sd_model(model_path:str = Form("")):
+        """
+        Deletes a Stable-diffusion model at <root>/models/Stable-diffusion/<model_path>
+        """
+        # curl -X POST -F "model_path=test" http://test.api.address/delete/sd_model
+        file_path = os.path.join(get_sd_ckpt_dir(), model_path)
+        if delete_file(file_path):
+            return {"message": f"Successfully deleted {file_path}", 'success': True}
+        else:
+            return {"message": f"Could not find {file_path}", 'success': False}
+        
+    @app.post("/delete/vae_model", response_model=BasicModelResponse)
+    def delete_vae_model(model_path:str = Form("")):
+        """
+        Deletes a VAE model at <root>/models/VAE/<model_path>
+        """
+        # curl -X POST -F "model_path=test" http://test.api.address/delete/vae_model
+        file_path = os.path.join(get_vae_ckpt_dir(), model_path)
+        if delete_file(file_path):
+            return {"message": f"Successfully deleted {file_path}", 'success': True}
+        else:
+            return {"message": f"Could not find {file_path}", 'success': False}
+        
+    @app.post("/delete/lora_model", response_model=BasicModelResponse)
+    def delete_lora_model(model_path:str = Form("")):
+        """
+        Deletes a LoRA model at <root>/models/LoRA/<model_path>
+        """
+        # curl -X POST -F "model_path=test" http://test.api.address/delete/lora_model
+        file_path = os.path.join(get_lora_ckpt_dir(), model_path)
+        if delete_file(file_path):
+            return {"message": f"Successfully deleted {file_path}", 'success': True}
+        else:
+            return {"message": f"Could not find {file_path}", 'success': False}
+        
+    @app.post("/delete/embedding", response_model=BasicModelResponse)
+    def delete_textual_inversion_model(model_path:str = Form("")):
+        """
+        Deletes a textual inversion model at <root>/embeddings/<model_path>
+        """
+        # curl -X POST -F "model_path=test" http://test.api.address/delete/embedding
+        file_path = os.path.join(get_textual_inversion_dir(), model_path)
+        if delete_file(file_path):
+            return {"message": f"Successfully deleted {file_path}", 'success': True}
+        else:
+            return {"message": f"Could not find {file_path}", 'success': False}
+        
+    
+
 def sync_api(app:FastAPI):
     """
     Binds sync API with app
@@ -625,6 +698,7 @@ def register_api(_:gr.Blocks, app:FastAPI):
     remove_cache_api(app)
     download_controlnet_models_api(app)
     upload_txt_api(app)
+    delete_api(app)
     
     
     
