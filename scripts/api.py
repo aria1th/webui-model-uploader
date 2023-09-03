@@ -310,8 +310,8 @@ def remove_cache_api(app:FastAPI):
         """
         Removes the cache for file_path
         """
-        remove_cache(file_path)
         if file_path in file_caches:
+            remove_cache(file_path)
             return {"message": f"Successfully removed cache for {file_path}", 'success': True}
         else:
             return {"message": f"Could not find cache for {file_path}", 'success': False}
