@@ -11,8 +11,7 @@ import json
 from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir, basepath
 
 
-
-overwrite = False # if True, overwrites existing files
+OVERWRITE = False # if True, overwrites existing files
 
 # read if file_caches.json exists
 if os.path.exists(os.path.join(basepath, 'file_caches.json')):
@@ -120,8 +119,8 @@ def set_overwrite(overwrite_:bool):
     """
     Sets overwrite to overwrite_
     """
-    global overwrite
-    overwrite = overwrite_
+    global OVERWRITE
+    OVERWRITE = overwrite_
     
 def parse_response_or_dict(response_or_dict):
     """
@@ -306,7 +305,7 @@ def remove_cache_api(app:FastAPI):
     Binds remove_cache API to app
     """
     @app.post("/remove_cache", response_model=BasicModelResponse)
-    def remove_cache_api(file_path:str = Form("")):
+    def remove_cache_api_endpoint(file_path:str = Form("")):
         """
         Removes the cache for file_path
         """
@@ -375,7 +374,7 @@ def upload_api(app:FastAPI):
         else:
             return {"message": f"Invalid modeltype {modeltype}", 'success': False}
         real_file_path = os.path.join(path, file.filename)
-        if os.path.exists(real_file_path) and not overwrite:
+        if os.path.exists(real_file_path) and not OVERWRITE:
             return {"message": f"File {real_file_path} already exists, set overwrite to True to overwrite", 'success': False}
         elif os.path.isdir(real_file_path):
             return {"message": f"File {real_file_path} is a directory", 'success': False}
@@ -383,7 +382,7 @@ def upload_api(app:FastAPI):
             contents = file.file.read()
             with open(file.filename, 'wb') as f:
                 f.write(contents)
-        except Exception:
+        except Exception as e:
             return {"message": "There was an error uploading the file", 'success': False}
         finally:
             file.file.close()
@@ -391,7 +390,7 @@ def upload_api(app:FastAPI):
         try:
             os.makedirs(path, exist_ok=True)
             remove_cache(real_file_path)
-            if os.path.exists(real_file_path) and overwrite:
+            if os.path.exists(real_file_path) and OVERWRITE:
                 print(f"Removing {real_file_path} to overwrite")
                 os.remove(real_file_path)
             shutil.move(file.filename, real_file_path) 
@@ -456,7 +455,7 @@ def fast_file_hash(file_path:str, size_to_read:int=1<<31) -> str:
         print(f"Using cache for {file_path}")
         return get_cache(file_path)
     print(f"Computing hash for {file_path} with size_to_read {size_to_read}...")
-    import hashlib
+    import hashlib # import hashlib in-context, maybe hashlib is overwritten by other modules
     BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
     sha256 = hashlib.sha256()
     if not os.path.exists(file_path):
@@ -482,7 +481,7 @@ def download_controlnet_models_api(app:FastAPI):
     """
     
     @app.post("/download_controlnet_models/xl", response_model=BasicModelResponse)
-    def download_controlnet_models_api():
+    def download_controlnet_models_api_endpoint():
         """
         Downloads controlnet models to <root>/models/controlnet/
         """
@@ -494,7 +493,7 @@ def download_controlnet_models_api(app:FastAPI):
             return {"message": "Could not download controlnet models XL", 'success': False}
         
     @app.post("/download_controlnet_models/v11", response_model=BasicModelResponse)
-    def download_controlnet_models_api():
+    def download_controlnet_models_api_endpoint():
         """
         Downloads controlnet models to <root>/models/controlnet/
         """
@@ -691,6 +690,9 @@ def query_api(app:FastAPI):
     
     
 def register_api(_:gr.Blocks, app:FastAPI):
+    """
+    Registers API to app
+    """
     upload_api(app)
     query_api(app)
     upload_root_api(app)
@@ -707,6 +709,5 @@ try:
     import modules.script_callbacks as script_callbacks
 
     script_callbacks.on_app_started(register_api)
-except:
+except (ImportError, ModuleNotFoundError) as e:
     print("Could not bind uploader-api to app")
-    pass
