@@ -263,7 +263,7 @@ class Connection:
             print("Syncing", model_path, "to", self.target_ap_address)
             base_ckpt_dir = get_sd_ckpt_dir()
             # remove base_ckpt_dir from model_path
-            model_path = model_path[len(base_ckpt_dir):]
+            model_path = model_path[len(base_ckpt_dir) + 1:]
             self.sync_sd_model(model_path)
             
     @standalone
@@ -277,7 +277,7 @@ class Connection:
             print("Syncing", model_path, "to", self.target_ap_address)
             base_ckpt_dir = get_vae_ckpt_dir()
             # remove base_ckpt_dir from model_path
-            model_path = model_path[len(base_ckpt_dir):]
+            model_path = model_path[len(base_ckpt_dir) + 1:]
             self.sync_vae_model(model_path)
             
     @standalone
@@ -291,7 +291,7 @@ class Connection:
             print("Syncing", model_path, "to", self.target_ap_address)
             base_ckpt_dir = get_lora_ckpt_dir()
             # remove base_ckpt_dir from model_path
-            model_path = model_path[len(base_ckpt_dir):]
+            model_path = model_path[len(base_ckpt_dir) + 1:]
             self.sync_lora_model(model_path)
             
     @standalone
@@ -305,7 +305,7 @@ class Connection:
             print("Syncing", model_path, "to", self.target_ap_address)
             base_ckpt_dir = get_textual_inversion_dir()
             # remove base_ckpt_dir from model_path
-            model_path = model_path[len(base_ckpt_dir):]
+            model_path = model_path[len(base_ckpt_dir) + 1:]
             self.sync_textual_inversion_model(model_path)
             
     @standalone
@@ -339,7 +339,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Master Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise Exception(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_sd'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -360,7 +360,13 @@ class Connection:
         """
             Syncs the model with the server
         """
-        model_target_dirs = model_path.split('/')
+        assert not model_path.startswith('/') and not model_path.startswith('\\'), "model_path should be relative path"
+        if '/' in model_path:
+            model_target_dirs = model_path.split('/')
+        elif '\\' in model_path:
+            model_target_dirs = model_path.split('\\')
+        else:
+            model_target_dirs = [model_path]
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
         self_hash_response = self.create_self_request('models/query_hash_vae', data={'path': model_path})
@@ -368,7 +374,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Master Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise Exception(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_vae'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -389,7 +395,13 @@ class Connection:
         """
             Syncs the model with the server
         """
-        model_target_dirs = model_path.split('/')
+        assert not model_path.startswith('/') and not model_path.startswith('\\'), "model_path should be relative path"
+        if '/' in model_path:
+            model_target_dirs = model_path.split('/')
+        elif '\\' in model_path:
+            model_target_dirs = model_path.split('\\')
+        else:
+            model_target_dirs = [model_path]
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
         self_hash_response = self.create_self_request('models/query_hash_lora', data={'path': model_path})
@@ -397,7 +409,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Master Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise Exception(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_lora'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -418,8 +430,13 @@ class Connection:
         """
             Syncs the model with the server
         """
-        
-        model_target_dirs = model_path.split('/')
+        assert not model_path.startswith('/') and not model_path.startswith('\\'), "model_path should be relative path"
+        if '/' in model_path:
+            model_target_dirs = model_path.split('/')
+        elif '\\' in model_path:
+            model_target_dirs = model_path.split('\\')
+        else:
+            model_target_dirs = [model_path]
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
         self_hash_response = self.create_self_request('models/query_hash_embedding', data={'path': model_path})
@@ -427,7 +444,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Master Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise Exception(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_embedding'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
