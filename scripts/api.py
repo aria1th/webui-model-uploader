@@ -454,12 +454,12 @@ def fast_file_hash(file_path:str, size_to_read:int=1<<31) -> str:
     if file_path in file_caches and os.path.exists(file_path):
         print(f"Using cache for {file_path}")
         return get_cache(file_path)
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Could not find file at {file_path} at func_fast_file_hash")
     print(f"Computing hash for {file_path} with size_to_read {size_to_read}...")
     import hashlib # import hashlib in-context, maybe hashlib is overwritten by other modules
     BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
     sha256 = hashlib.sha256()
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Could not find file at {file_path}")
     filesize = os.path.getsize(file_path)
     with open(file_path, 'rb') as f:
         bytes_read = 0
@@ -519,7 +519,9 @@ def query_api(app:FastAPI):
         size_to_read : size to read from each file
         """
         new_dict = {}
-        if os.path.isabs(path):
+        if basepath == "":
+            raise ValueError("basepath must not be empty")
+        if os.path.isabs(path) and path != "":
             # check if path is a subpath of basepath
             if not path.startswith(basepath):
                 raise ValueError(f"path {path} is not a subpath of basepath {basepath}")
@@ -527,10 +529,10 @@ def query_api(app:FastAPI):
             path = os.path.join(basepath, path)
         for root, dirs, files in os.walk(path):
             for file in files:
+                print(root, file)
                 file_path = os.path.join(root, file)
                 if os.path.isfile(file_path) and file.endswith(".safetensors") or file.endswith(".ckpt") or file.endswith(".pt"):
-                    separator = os.path.sep
-                    file_path_without_basepath = file_path.replace(basepath+separator, "")
+                    file_path_without_basepath = file_path.replace(basepath+'\\', "").replace(basepath+'/', "")
                     try:
                         new_dict[file_path_without_basepath] = fast_file_hash(file_path, size_to_read=size_to_read)
                     except FileNotFoundError:

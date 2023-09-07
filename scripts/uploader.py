@@ -325,7 +325,13 @@ class Connection:
         """
             Syncs the model with the server
         """
-        model_target_dirs = model_path.split('/')
+        if '/' in model_path:
+            model_target_dirs = model_path.split('/')
+        elif '\\' in model_path:
+            model_target_dirs = model_path.split('\\')
+        else:
+            model_target_dirs = [model_path]
+            
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
         self_hash_response = self.create_self_request('models/query_hash_sd', data={'path': model_path})
@@ -333,7 +339,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise Exception('Master Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_sd'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -362,7 +368,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise Exception('Master Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_vae'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -391,7 +397,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise Exception('Master Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_lora'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -421,7 +427,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise Exception('Master Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_embedding'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
