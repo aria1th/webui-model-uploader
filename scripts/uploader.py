@@ -275,6 +275,9 @@ class Connection:
         
         for model_path in glob.glob(get_sd_ckpt_dir() + '/**/*.safetensors', recursive=True):
             print("Syncing", model_path, "to", self.target_ap_address)
+            base_ckpt_dir = get_sd_ckpt_dir()
+            # remove base_ckpt_dir from model_path
+            model_path = model_path[len(base_ckpt_dir):]
             self.sync_sd_model(model_path)
             
     @standalone
@@ -286,6 +289,9 @@ class Connection:
         
         for model_path in glob.glob(get_vae_ckpt_dir() + '/**/*.safetensors', recursive=True):
             print("Syncing", model_path, "to", self.target_ap_address)
+            base_ckpt_dir = get_vae_ckpt_dir()
+            # remove base_ckpt_dir from model_path
+            model_path = model_path[len(base_ckpt_dir):]
             self.sync_vae_model(model_path)
             
     @standalone
@@ -297,6 +303,9 @@ class Connection:
         
         for model_path in glob.glob(get_lora_ckpt_dir() + '/**/*.safetensors', recursive=True):
             print("Syncing", model_path, "to", self.target_ap_address)
+            base_ckpt_dir = get_lora_ckpt_dir()
+            # remove base_ckpt_dir from model_path
+            model_path = model_path[len(base_ckpt_dir):]
             self.sync_lora_model(model_path)
             
     @standalone
@@ -308,6 +317,9 @@ class Connection:
         
         for model_path in glob.glob(get_textual_inversion_dir() + '/**/*.pt', recursive=True):
             print("Syncing", model_path, "to", self.target_ap_address)
+            base_ckpt_dir = get_textual_inversion_dir()
+            # remove base_ckpt_dir from model_path
+            model_path = model_path[len(base_ckpt_dir):]
             self.sync_textual_inversion_model(model_path)
             
     @standalone
