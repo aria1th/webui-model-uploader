@@ -9,8 +9,8 @@ from logging import getLogger
 import tqdm
 import requests
 from functools import lru_cache
-from fastapi import FastAPI, APIRouter
 from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir
+
 
 try:
     import requests_toolbelt
@@ -22,20 +22,12 @@ except (ImportError, ModuleNotFoundError):
 #Session = requests.Session()
 
 @lru_cache(maxsize=1)
-def get_self_app():
-    SELF_APP = None
-    try:
-        from scripts.api import SELF_APP
-        return SELF_APP
-    except (ImportError, ModuleNotFoundError) as e:
-        getLogger(__name__).warning(str(e))
-        return None
-@lru_cache(maxsize=1)
 def get_port():
     try:
         from modules.shared import cmd_opts
         return cmd_opts.port
     except (ImportError, ModuleNotFoundError):
+        print("Fallback to default port 7860")
         return 7860
     
 
@@ -111,15 +103,9 @@ class Connection:
         """
         Post request to required path
         """
-        SELF_APP = get_self_app()
-        if SELF_APP is not None:
-            assert isinstance(SELF_APP, FastAPI)
-            assert isinstance(SELF_APP.router, APIRouter)
-        else:
-            # use master ap address
-            target_address = self.get_master_ap_address() + accessor
-            return self.session.post(target_address, data=data)
-        return SELF_APP.router.post(path=accessor,data=data)
+        target_address = self.get_master_ap_address() + accessor
+        return self.session.post(target_address, data=data)
+            
     
     @staticmethod
     def create_progressbar_callback(encoder_obj):
@@ -347,7 +333,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception('Server does not have requested model')
+            raise Exception('Server does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_sd'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})

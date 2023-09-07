@@ -702,8 +702,7 @@ def register_api(_:gr.Blocks, app:FastAPI):
     upload_txt_api(app)
     delete_api(app)
     
-    
-    
+
 # only works in context of sdwebui
 try:
     import modules.script_callbacks as script_callbacks
