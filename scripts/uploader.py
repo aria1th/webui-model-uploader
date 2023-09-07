@@ -274,6 +274,7 @@ class Connection:
         """
         
         for model_path in glob.glob(get_sd_ckpt_dir() + '/**/*.safetensors', recursive=True):
+            print("Syncing", model_path, "to", self.target_ap_address)
             self.sync_sd_model(model_path)
             
     @standalone
@@ -284,6 +285,7 @@ class Connection:
         """
         
         for model_path in glob.glob(get_vae_ckpt_dir() + '/**/*.safetensors', recursive=True):
+            print("Syncing", model_path, "to", self.target_ap_address)
             self.sync_vae_model(model_path)
             
     @standalone
@@ -294,6 +296,7 @@ class Connection:
         """
         
         for model_path in glob.glob(get_lora_ckpt_dir() + '/**/*.safetensors', recursive=True):
+            print("Syncing", model_path, "to", self.target_ap_address)
             self.sync_lora_model(model_path)
             
     @standalone
@@ -304,6 +307,7 @@ class Connection:
         """
         
         for model_path in glob.glob(get_textual_inversion_dir() + '/**/*.pt', recursive=True):
+            print("Syncing", model_path, "to", self.target_ap_address)
             self.sync_textual_inversion_model(model_path)
             
     @standalone
