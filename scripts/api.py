@@ -514,8 +514,17 @@ def query_api(app:FastAPI):
         """
         Walks through path and returns a dict of hashes of files in path
         Removes basepath from file paths
+        path : relative path to walk through
+        basepath : basepath to start from
+        size_to_read : size to read from each file
         """
         new_dict = {}
+        if os.path.isabs(path):
+            # check if path is a subpath of basepath
+            if not path.startswith(basepath):
+                raise ValueError(f"path {path} is not a subpath of basepath {basepath}")
+        else:
+            path = os.path.join(basepath, path)
         for root, dirs, files in os.walk(path):
             for file in files:
                 file_path = os.path.join(root, file)
@@ -524,7 +533,7 @@ def query_api(app:FastAPI):
                     file_path_without_basepath = file_path.replace(basepath+separator, "")
                     try:
                         new_dict[file_path_without_basepath] = fast_file_hash(file_path, size_to_read=size_to_read)
-                    except FileNotFoundError as e:
+                    except FileNotFoundError:
                         new_dict[file_path_without_basepath] = ""
         return new_dict
     
