@@ -481,7 +481,7 @@ def download_controlnet_models_api(app:FastAPI):
     """
     
     @app.post("/download_controlnet_models/xl", response_model=BasicModelResponse)
-    def download_controlnet_models_api_endpoint():
+    def download_controlnet_models_api_endpoint_xl():
         """
         Downloads controlnet models to <root>/models/controlnet/
         """
@@ -493,7 +493,7 @@ def download_controlnet_models_api(app:FastAPI):
             return {"message": "Could not download controlnet models XL", 'success': False}
         
     @app.post("/download_controlnet_models/v11", response_model=BasicModelResponse)
-    def download_controlnet_models_api_endpoint():
+    def download_controlnet_models_api_endpoint_v11():
         """
         Downloads controlnet models to <root>/models/controlnet/
         """
