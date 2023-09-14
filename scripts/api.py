@@ -6,7 +6,7 @@ from fastapi import File, UploadFile, FastAPI, Form
 from pydantic import BaseModel
 import gradio as gr
 from scripts.uploader import Connection
-from scripts.download_models import download_controlnet_xl_models, download_controlnet_v11_models
+from scripts.download_models import download_controlnet_xl_models, download_controlnet_v11_models, download_model_by_name
 import json
 from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir, basepath
 
@@ -72,7 +72,25 @@ def call_download_controlnet_v11():
     except Exception as e:
         print(f"Could not download controlnet models: {e}")
         return False
-
+    
+def call_download_model_by_name(name:str):
+    try:
+        from modules.shared import opts
+        cnet_models_path = opts.data.get('control_net_modules_path', None)
+        if not cnet_models_path:
+            cnet_extension_path = os.path.join(basepath, 'extensions', 'sd-webui-controlnet')
+            if not os.path.exists(cnet_extension_path):
+                print(f"Could not find controlnet extension at {cnet_extension_path}")
+                return False
+            cnet_models_path = os.path.join(cnet_extension_path, 'models')
+        if not os.path.exists(cnet_models_path):
+            print(f"Could not find controlnet models at {cnet_models_path}")
+            return False
+        download_model_by_name(cnet_models_path, name)
+        return True
+    except Exception as e:
+        print(f"Could not download controlnet models: {e}")
+        return False
 
 def register_cache(file_path:str, cache:str):
     """
@@ -479,7 +497,7 @@ def download_controlnet_models_api(app:FastAPI):
     """
     Bind download_controlnet_models API to app
     """
-    
+    # TODO: add separate download_controlnet_models API for v11 and xl
     @app.post("/download_controlnet_models/xl", response_model=BasicModelResponse)
     def download_controlnet_models_api_endpoint_xl():
         """
@@ -503,6 +521,20 @@ def download_controlnet_models_api(app:FastAPI):
             return {"message": "Successfully downloaded controlnet models v11", 'success': True}
         else:
             return {"message": "Could not download controlnet models v11", 'success': False}
+        
+    @app.post("/download_controlnet_models/by_name", response_model=BasicModelResponse)
+    def download_controlnet_models_api_endpoint_by_name(name:str = Form("")):
+        """
+        Downloads controlnet models to <root>/models/controlnet/
+        """
+        # curl -X POST -F "name=controlnet_xl" http://127.0.0.1:7860/download_controlnet_models/by_name
+        if name == "":
+            return {"message": "name must not be empty", 'success': False}
+        result = call_download_model_by_name(name)
+        if result:
+            return {"message": f"Successfully downloaded controlnet models {name}", 'success': True}
+        else:
+            return {"message": f"Could not download controlnet models {name}", 'success': False}
         
 
 def query_api(app:FastAPI):

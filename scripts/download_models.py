@@ -55,6 +55,8 @@ base_model_files = {
 }
 
 def download_models(path:str, models_dict:dict):
+    """Download models from huggingface"""
+    # runtime import
     import requests
     import os
     for k, v in models_dict.items():
@@ -63,14 +65,58 @@ def download_models(path:str, models_dict:dict):
             # compare file size
             continue
         print(f'Downloading {k}...')
-        r = requests.get(v, allow_redirects=True)
-        with open(os.path.join(path, k), 'wb') as f:
-            f.write(r.content)
-        print(f'Downloaded {k} at {path}')
-    
-    
+        try:
+            r = requests.get(v, allow_redirects=True)
+            lock_path = os.path.join(path, k + '.lock')
+            if os.path.isfile(lock_path):
+                print(f'Lock file {lock_path} exists, skipping')
+                continue
+            with open(lock_path, 'wb') as lockfile:
+                # dummy
+                lockfile.write(b'')
+            with open(os.path.join(path, k), 'wb') as file:
+                file.write(r.content)
+            print(f'Downloaded {k} at {path}')
+        except Exception as err:
+            print(f'Failed to download {k} at {path}')
+            print(err)
+        finally:
+            if os.path.isfile(lock_path):
+                os.remove(lock_path)
+            print(f'Removed lock file {lock_path}')
+
 def download_controlnet_xl_models(path:str):
+    """
+    Downloads ControlNet XL models from huggingface
+    """
     download_models(path, xl_model_files)
-        
+
 def download_controlnet_v11_models(path:str):
+    """
+    Downloads ControlNet v1.1 models from huggingface
+    """
     download_models(path, base_model_files)
+
+def download_model_by_name(path:str, name:str):
+    """
+    Downloads a model by name from huggingface
+    """
+    download_models(path, match_model_name(name))
+    
+def match_model_name(name:str):
+    """
+    Matches a model name to a huggingface url
+    """
+    # remove ' [something]' from name
+    if ' [' in name:
+        name = name[:name.index(' [')]
+    # match .pth or .safetensors extension
+    pth_name = name + '.pth'
+    safetensors_name = name + '.safetensors'
+    for name_ext in [pth_name, safetensors_name]:
+        if name_ext in base_v11_model_names:
+            return {name_ext: f'https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/{name_ext}'}
+        elif name_ext in xl_model_files:
+            return {name_ext: xl_model_files[name_ext]}
+    else:
+        raise ValueError(f'No model found with name {name}')
