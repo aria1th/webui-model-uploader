@@ -9,7 +9,7 @@ from scripts.uploader import Connection
 from scripts.download_models import download_controlnet_xl_models, download_controlnet_v11_models, download_model_by_name
 import json
 from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir, basepath
-
+from scripts.auxilary_api import add_token_count_api
 
 OVERWRITE = False # if True, overwrites existing files
 
@@ -744,6 +744,7 @@ def register_api(_:gr.Blocks, app:FastAPI):
     download_controlnet_models_api(app)
     upload_txt_api(app)
     delete_api(app)
+    add_token_count_api(app) # auxilary
     
 
 # only works in context of sdwebui
