@@ -19,6 +19,17 @@ additional_models = {
 'ip-adapter_sd15_plus.safetensors': 'https://huggingface.co/h94/IP-Adapter/resolve/main/models/ip-adapter-plus_sd15.bin', 'ip-adapter_sd15.safetensors': 'https://huggingface.co/h94/IP-Adapter/resolve/main/models/ip-adapter_sd15.bin', 'ip-adapter_xl.safetensors': 'https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter_sdxl.bin',
 
 }
+# fix ext
+copy_dict = additional_models.copy()
+additional_models.clear()
+for k, v in copy_dict.items():
+    if '.pth' in v and '.safetensors' in k:
+        #replace .safetenors with .pth
+        additional_models[k.replace('.safetensors', '.pth')] = v
+    elif '.bin' in v and '.safetensors' in k:
+        #replace .safetenors with .bin
+        additional_models[k.replace('.safetensors', '.bin')] = v
+
 xl_model_files = {
     k: v for k, v in additional_models.items() if '_xl' in k or '_sdxl' in k
 }
@@ -67,7 +78,7 @@ def download_models(path:str, models_dict:dict):
         if os.path.isfile(os.path.join(path, k)):
             # compare file size
             continue
-        print(f'Downloading {k}...')
+        print(f'Downloading {k}... at {path}')
         try:
             r = requests.get(v, allow_redirects=True)
             lock_path = os.path.join(path, k + '.lock')
