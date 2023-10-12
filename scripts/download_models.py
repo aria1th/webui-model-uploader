@@ -2,7 +2,7 @@
 ### @reference : https://huggingface.co/lllyasviel/sd_control_collection
 
 
-xl_model_files = {
+additional_models = {
 
 'diffusers_xl_canny_small.safetensors': 'https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0-small/resolve/main/diffusion_pytorch_model.bin', 'diffusers_xl_canny_mid.safetensors': 'https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0-mid/resolve/main/diffusion_pytorch_model.bin', 'diffusers_xl_canny_full.safetensors': 'https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0/resolve/main/diffusion_pytorch_model.bin', 'diffusers_xl_depth_small.safetensors': 'https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0-small/resolve/main/diffusion_pytorch_model.bin', 'diffusers_xl_depth_mid.safetensors': 'https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0-mid/resolve/main/diffusion_pytorch_model.bin', 'diffusers_xl_depth_full.safetensors': 'https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0/resolve/main/diffusion_pytorch_model.bin',
 
@@ -18,6 +18,9 @@ xl_model_files = {
 
 'ip-adapter_sd15_plus.safetensors': 'https://huggingface.co/h94/IP-Adapter/resolve/main/models/ip-adapter-plus_sd15.bin', 'ip-adapter_sd15.safetensors': 'https://huggingface.co/h94/IP-Adapter/resolve/main/models/ip-adapter_sd15.bin', 'ip-adapter_xl.safetensors': 'https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter_sdxl.bin',
 
+}
+xl_model_files = {
+    k: v for k, v in additional_models.items() if '_xl' in k or '_sdxl' in k
 }
 base_v11_model_names = {'control_v11e_sd15_ip2p.pth',
  'control_v11e_sd15_ip2p.yaml',
@@ -96,6 +99,10 @@ def download_controlnet_v11_models(path:str):
     Downloads ControlNet v1.1 models from huggingface
     """
     download_models(path, base_model_files)
+    # match non-xl models
+    for name, url in additional_models.items():
+        if '_xl' not in name and '_sdxl' not in name:
+            download_models(path, {name: url})
 
 def download_model_by_name(path:str, name:str):
     """
@@ -118,5 +125,7 @@ def match_model_name(name:str):
             return {name_ext: f'https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/{name_ext}'}
         elif name_ext in xl_model_files:
             return {name_ext: xl_model_files[name_ext]}
+        elif name_ext in additional_models:
+            return {name_ext: additional_models[name_ext]}
     else:
         raise ValueError(f'No model found with name {name}')
