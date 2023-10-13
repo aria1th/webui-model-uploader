@@ -171,6 +171,22 @@ def delete_api(app:FastAPI):
             return True
         return False
     
+    def delete_empty_dir(model_path:str) -> None:
+        """
+        if model path contains '/', which means it is specifying subdirectory, delete empty directories
+        example : somesubdir/file.safetensors
+        if file.safetensors is the only file in somesubdir, delete somesubdir
+        """
+        if '/' in model_path:
+            model_path = os.path.dirname(model_path)
+            if model_path == '':
+                return
+            if os.path.exists(model_path) and os.path.isdir(model_path):
+                if len(os.listdir(model_path)) == 0:
+                    os.rmdir(model_path)
+        
+        
+    
     @app.post("/delete/sd_model", response_model=BasicModelResponse)
     def delete_sd_model(model_path:str = Form("")):
         """
@@ -179,6 +195,7 @@ def delete_api(app:FastAPI):
         # curl -X POST -F "model_path=test" http://test.api.address/delete/sd_model
         file_path = os.path.join(get_sd_ckpt_dir(), model_path)
         if delete_file(file_path):
+            delete_empty_dir(model_path) # delete empty directories
             return {"message": f"Successfully deleted {file_path}", 'success': True}
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
@@ -191,6 +208,7 @@ def delete_api(app:FastAPI):
         # curl -X POST -F "model_path=test" http://test.api.address/delete/vae_model
         file_path = os.path.join(get_vae_ckpt_dir(), model_path)
         if delete_file(file_path):
+            delete_empty_dir(model_path) # delete empty directories
             return {"message": f"Successfully deleted {file_path}", 'success': True}
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
@@ -203,6 +221,7 @@ def delete_api(app:FastAPI):
         # curl -X POST -F "model_path=test" http://test.api.address/delete/lora_model
         file_path = os.path.join(get_lora_ckpt_dir(), model_path)
         if delete_file(file_path):
+            delete_empty_dir(model_path) # delete empty directories
             return {"message": f"Successfully deleted {file_path}", 'success': True}
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
@@ -215,6 +234,7 @@ def delete_api(app:FastAPI):
         # curl -X POST -F "model_path=test" http://test.api.address/delete/embedding
         file_path = os.path.join(get_textual_inversion_dir(), model_path)
         if delete_file(file_path):
+            delete_empty_dir(model_path) # delete empty directories
             return {"message": f"Successfully deleted {file_path}", 'success': True}
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
