@@ -9,12 +9,14 @@ from modules.sd_hijack import model_hijack
 from modules import extra_networks
 from modules import prompt_parser
 
+from scripts.auth import secure_post
+
 class TokenCountResponse(BaseModel):
     token_count: int
     max_length: int
 
 def add_token_count_api(app : FastAPI):
-    @app.post('/sdapi/v1/count_tokens', response_model=TokenCountResponse)
+    @secure_post('/sdapi/v1/count_tokens', response_model=TokenCountResponse)
     def token_count(prompt:str = Form()):
         """
         Returns the token count and max length of the prompt

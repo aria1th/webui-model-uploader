@@ -57,3 +57,16 @@ def get_textual_inversion_dir() -> str:
         ckpt_dir = os.path.join(basepath, 'embeddings')
     assert os.path.exists(ckpt_dir), f"Could not find ckpt_dir {ckpt_dir}"
     return ckpt_dir
+
+@lru_cache(maxsize=1)
+def get_basic_auth_file() -> str:
+    try:
+        from modules.shared import cmd_opts
+        auth_file = cmd_opts.basic_auth_file
+        print("Using auth_file", auth_file)
+    except (ModuleNotFoundError, ImportError):
+        auth_file = os.path.join(basepath, 'auth.json')
+    if auth_file is None:
+        auth_file = os.path.join(basepath, 'auth.json')
+    print("Using auth_file", auth_file)
+    return auth_file
