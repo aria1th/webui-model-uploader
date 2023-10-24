@@ -172,26 +172,32 @@ def delete_api(app:FastAPI):
             return True
         return False
     
-    def delete_empty_dir(model_path:str) -> None:
+    def delete_empty_dir(model_path:str, file_path:str) -> None:
         """
         if model path contains '/', which means it is specifying subdirectory, delete empty directories
-        example : somesubdir/file.safetensors
+        example : ..somesubdir/file.safetensors
         if file.safetensors is the only file in somesubdir, delete somesubdir
         """
-        if '/' in model_path:
-            model_path = os.path.dirname(model_path)
-            if model_path == '':
+        # get subdir from file_path - model_path
+        # /root/subdir/file.safetensors -> subdir/file.safetensors if model_path is subdir/file.safetensors
+        file_subdir = file_path[len(model_path):] 
+        if '/' in model_path or '\\' in file_subdir:
+            # get last index of / or \ then get substring from 0 to last index from file_subdir
+            # example: subdir/file.safetensors -> subdir
+            subdir = file_subdir[:max(file_subdir.rfind('/'), file_subdir.rfind('\\'))]
+            if subdir == '':
                 print(f"Could not delete empty directory {model_path} because it is root")
                 return
+            model_path = os.path.join(model_path, subdir)
             if os.path.exists(model_path) and os.path.isdir(model_path):
                 if len(os.listdir(model_path)) == 0:
                     print(f"Deleting empty directory {model_path}")
                     os.rmdir(model_path)
                 else:
                     print(f"Could not delete {model_path} because it is not empty")
-        
-        
-    
+            else:
+                print(f"Could not delete {model_path} because it does not exist or is not a directory")
+                
     @secure_post("/delete/sd_model", response_model=BasicModelResponse)
     def delete_sd_model(model_path:str = Form("")):
         """
@@ -200,7 +206,7 @@ def delete_api(app:FastAPI):
         # curl -X POST -F "model_path=test" http://test.api.address/delete/sd_model
         file_path = os.path.join(get_sd_ckpt_dir(), model_path)
         if delete_file(file_path):
-            delete_empty_dir(model_path) # delete empty directories
+            delete_empty_dir(model_path, file_path) # delete empty directories
             return {"message": f"Successfully deleted {file_path}", 'success': True}
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
@@ -213,7 +219,7 @@ def delete_api(app:FastAPI):
         # curl -X POST -F "model_path=test" http://test.api.address/delete/vae_model
         file_path = os.path.join(get_vae_ckpt_dir(), model_path)
         if delete_file(file_path):
-            delete_empty_dir(model_path) # delete empty directories
+            delete_empty_dir(model_path, file_path) # delete empty directories
             return {"message": f"Successfully deleted {file_path}", 'success': True}
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
@@ -226,7 +232,7 @@ def delete_api(app:FastAPI):
         # curl -X POST -F "model_path=test" http://test.api.address/delete/lora_model
         file_path = os.path.join(get_lora_ckpt_dir(), model_path)
         if delete_file(file_path):
-            delete_empty_dir(model_path) # delete empty directories
+            delete_empty_dir(model_path, file_path) # delete empty directories
             return {"message": f"Successfully deleted {file_path}", 'success': True}
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
@@ -239,7 +245,7 @@ def delete_api(app:FastAPI):
         # curl -X POST -F "model_path=test" http://test.api.address/delete/embedding
         file_path = os.path.join(get_textual_inversion_dir(), model_path)
         if delete_file(file_path):
-            delete_empty_dir(model_path) # delete empty directories
+            delete_empty_dir(model_path, file_path) # delete empty directories
             return {"message": f"Successfully deleted {file_path}", 'success': True}
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
@@ -401,7 +407,7 @@ def upload_api(app:FastAPI):
     
     @secure_post("/upload", response_model=BasicModelResponse)
         # test with {'file': open('images/1.png', 'rb')}
-    def upload(file: UploadFile = File(...), path: str = Form('./tmp'), modeltype:str = Form("")):
+    def upload(file: UploadFile = File(...), path: str = Form('./tmp'), modeltype:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a file to path
         """
@@ -416,7 +422,14 @@ def upload_api(app:FastAPI):
             path = os.path.join(get_textual_inversion_dir(), path)
         else:
             return {"message": f"Invalid modeltype {modeltype}", 'success': False}
-        real_file_path = os.path.join(path, file.filename)
+        if custom_name:
+            custom_name = custom_name.strip().replace(' ', '_').replace('/', '_').replace('\\', '_') # no path separators allowed
+            # if custom_name does not have extension, add extension '.safetensors'
+            if '.' not in custom_name:
+                custom_name += '.safetensors'
+        else:
+            custom_name = ""
+        real_file_path = os.path.join(path, file.filename if custom_name == "" else custom_name)
         if os.path.exists(real_file_path) and not OVERWRITE:
             return {"message": f"File {real_file_path} already exists, set overwrite to True to overwrite", 'success': False}
         elif os.path.isdir(real_file_path):
@@ -444,26 +457,26 @@ def upload_api(app:FastAPI):
         return {"message": f"Successfully uploaded {file.filename} to {real_file_path}", 'success': True}
 
     @secure_post("/upload_sd_model", response_model=BasicModelResponse)
-    def upload_sd_model(file:UploadFile = File(...), sd_path:str= Form("")):
+    def upload_sd_model(file:UploadFile = File(...), sd_path:str= Form(""), custom_name:str = Form("")):
         """
         Uploads a Stable-diffusion model to <root>/models/Stable-diffusion/<sd_path>/<sd_model_name>
         """
         # upload file to <root>/models/Stable-diffusion/<sd_model_name>/<sd_model_name>
         # sd_model_name may be a.safetensors or /sd_path/../<model_name>
         assert '../' not in sd_path, "sd_model_name must not contain ../"
-        return upload(file, sd_path, "sd")
+        return upload(file, sd_path, "sd", custom_name=custom_name)
         
     @secure_post("/upload_vae_model", response_model=BasicModelResponse)
-    def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form("")):
+    def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a VAE model to <root>/models/VAE/<vae_path>/<vae_model_name>
         """
         # upload file to <root>/models/VAE/<vae_path>/<vae_model_name>
         assert '../' not in vae_path, "vae_path must not contain ../"
-        return upload(file, vae_path, "vae")
+        return upload(file, vae_path, "vae", custom_name=custom_name)
 
     @secure_post("/upload_lora_model", response_model=BasicModelResponse)
-    def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form("")):
+    def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a LoRA model to <root>/models/LoRA/<lora_path>/<lora_model_name>
         """
@@ -471,10 +484,10 @@ def upload_api(app:FastAPI):
         # l /lora_path/<model_name>
         # assert lora_model_name does not contain ../
         assert '../' not in lora_path, "lora_path must not contain ../"
-        return upload(file, lora_path, "lora")
+        return upload(file, lora_path, "lora", custom_name=custom_name)
     
     @secure_post("/upload_embedding", response_model=BasicModelResponse)
-    def upload_textual_inversion_model(file:UploadFile = File(...), textual_inversion_path:str = Form("")):
+    def upload_textual_inversion_model(file:UploadFile = File(...), textual_inversion_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a textual inversion model to <root>/embeddings/<textual_inversion_path>/<textual_inversion_model_name>
         """
@@ -482,7 +495,7 @@ def upload_api(app:FastAPI):
         # l /textual_inversion_path/<model_name>
         # assert textual_inversion_model_name does not contain ../
         assert '../' not in textual_inversion_path, "textual_inversion_path must not contain ../"
-        return upload(file, textual_inversion_path, "textual_inversion")
+        return upload(file, textual_inversion_path, "textual_inversion", custom_name=custom_name)
     
     # can be used with curl
     #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
