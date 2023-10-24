@@ -181,10 +181,14 @@ def delete_api(app:FastAPI):
         if '/' in model_path:
             model_path = os.path.dirname(model_path)
             if model_path == '':
+                print(f"Could not delete empty directory {model_path} because it is root")
                 return
             if os.path.exists(model_path) and os.path.isdir(model_path):
                 if len(os.listdir(model_path)) == 0:
+                    print(f"Deleting empty directory {model_path}")
                     os.rmdir(model_path)
+                else:
+                    print(f"Could not delete {model_path} because it is not empty")
         
         
     
@@ -421,6 +425,7 @@ def upload_api(app:FastAPI):
             contents = file.file.read()
             with open(file.filename, 'wb') as f:
                 f.write(contents)
+            print(f"Successfully uploaded {file.filename} to {real_file_path}")
         except Exception as e:
             return {"message": "There was an error uploading the file", 'success': False}
         finally:
