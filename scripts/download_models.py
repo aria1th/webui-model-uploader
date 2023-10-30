@@ -30,6 +30,8 @@ additional_models = {
     'ip-adapter_sd15_plus.pth': 'https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/ip-adapter_sd15_plus.pth', 
     'ip-adapter_sd15.pth': 'https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/ip-adapter_sd15.pth', 
     'ip-adapter_xl.pth': 'https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/ip-adapter_xl.pth',
+    'ip-adapter-plus-face_sd15.pth' : 'https://huggingface.co/h94/IP-Adapter/resolve/main/models/ip-adapter-plus-face_sd15.bin',
+    'ip-adapter_sd15_light.pth' : 'https://huggingface.co/h94/IP-Adapter/resolve/main/models/ip-adapter_sd15_light.bin'
 }
 # fix ext
 copy_dict = additional_models.copy()
@@ -39,8 +41,9 @@ for k, v in copy_dict.items():
         #replace .safetenors with .pth
         additional_models[k.replace('.safetensors', '.pth')] = v
     elif '.bin' in v and '.safetensors' in k:
-        #replace .safetenors with .bin
-        additional_models[k.replace('.safetensors', '.bin')] = v
+        #replace .safetenors with .pth
+        # bin is not natively supported by torch.load
+        additional_models[k.replace('.safetensors', '.pth')] = v
 
 xl_model_files = {
     k: v for k, v in additional_models.items() if '_xl' in k or '_sdxl' in k
