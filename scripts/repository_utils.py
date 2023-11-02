@@ -31,7 +31,7 @@ def fetch_huggingface_files(base_url, repo_path, file_extensions):
     return files
 
 base_url = 'https://huggingface.co'
-repo_path = 'lllyasviel/sd_control_collection'
 file_extensions = ['.pth', 'safetensors', 'yaml']
 
-SD_CONTROL_COLLECTION = fetch_huggingface_files(base_url, repo_path, file_extensions)
+SD_CONTROL_COLLECTION = fetch_huggingface_files(base_url, 'lllyasviel/sd_control_collection', file_extensions)
+CONTROLNET_V11_MODELS = fetch_huggingface_files(base_url, 'lllyasviel/ControlNet-v1-1', file_extensions)
