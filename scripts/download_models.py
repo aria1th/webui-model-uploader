@@ -78,6 +78,11 @@ base_model_files = {
     name: f'https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/{name}' for name in base_v11_model_names
 }
 
+all_models = set()
+all_models.update(xl_model_files.keys())
+all_models.update(base_model_files.keys())
+all_models.update(additional_models.keys())
+
 def download_models(path:str, models_dict:dict):
     """Download models from huggingface"""
     # runtime import
@@ -148,5 +153,7 @@ def match_model_name(name:str):
             return {name_ext: xl_model_files[name_ext]}
         elif name_ext in additional_models:
             return {name_ext: additional_models[name_ext]}
-    else:
-        raise ValueError(f'No model found with name {name}')
+    raise ValueError(f'Could not find model {name}')
+
+def list_controlnet_models():
+    return all_models.copy()

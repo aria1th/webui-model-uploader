@@ -35,6 +35,14 @@ class HashModelResponse(BaseModel):
     hashvalue: str
     success: bool
     message: str
+
+class ModelListResponse(BaseModel):
+    """
+    Model list response
+    """
+    models: list
+    success: bool
+    message: str
     
 def call_download_controlnet_xl():
     try:
@@ -570,6 +578,17 @@ def download_controlnet_models_api(app:FastAPI):
             return {"message": f"Successfully downloaded controlnet models {name}", 'success': True}
         else:
             return {"message": f"Could not download controlnet models {name}", 'success': False}
+        
+    @secure_post("/download_controlnet_models/list", response_model=ModelListResponse)
+    def list_controlnet_models():
+        """
+        Lists controlnet models
+        """
+        # curl -X POST http://127.0.0.1:7860/download_controlnet_models/list
+        from scripts.download_models import list_controlnet_models
+        set_models = list_controlnet_models()
+        # format set_models to list (from set)
+        return {"message": "", 'success': True, 'models': list(set_models)}
         
 
 def query_api(app:FastAPI):
