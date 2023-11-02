@@ -3,13 +3,6 @@
 
 
 additional_models = {
-
-    'diffusers_xl_canny_small.safetensors': 'https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0-small/resolve/main/diffusion_pytorch_model.bin', 
-    'diffusers_xl_canny_mid.safetensors': 'https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0-mid/resolve/main/diffusion_pytorch_model.bin',
-    'diffusers_xl_canny_full.safetensors': 'https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0/resolve/main/diffusion_pytorch_model.bin', 
-    'diffusers_xl_depth_small.safetensors': 'https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0-small/resolve/main/diffusion_pytorch_model.bin', 
-    'diffusers_xl_depth_mid.safetensors': 'https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0-mid/resolve/main/diffusion_pytorch_model.bin', 
-    'diffusers_xl_depth_full.safetensors': 'https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0/resolve/main/diffusion_pytorch_model.bin',
     'thibaud_xl_openpose.safetensors': 'https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/thibaud_xl_openpose.safetensors',
     'sargezt_xl_depth_faid_vidit.safetensors': 'https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/sargezt_xl_depth_faid_vidit.safetensors', 
     'sargezt_xl_depth_zeed.safetensors': 'https://huggingface.co/lllyasviel/sd_control_collection/resolve/main/sargezt_xl_depth_zeed.safetensors',
