@@ -44,6 +44,8 @@ for k, v in copy_dict.items():
         #replace .safetenors with .pth
         # bin is not natively supported by torch.load
         additional_models[k.replace('.safetensors', '.pth')] = v
+    else:
+        additional_models[k] = v
 
 xl_model_files = {
     k: v for k, v in additional_models.items() if '_xl' in k or '_sdxl' in k
