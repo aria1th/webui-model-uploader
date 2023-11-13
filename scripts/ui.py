@@ -35,4 +35,4 @@ def create_uploader_tab():
             )
     return (uploader_tab, 'Auxilary-API', 'script-auxilary-api'),
 
-script_callbacks.on_ui_tab(create_uploader_tab)
+script_callbacks.on_ui_tabs(create_uploader_tab)
