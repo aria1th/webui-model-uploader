@@ -70,3 +70,15 @@ def get_basic_auth_file() -> str:
         auth_file = os.path.join(basepath, 'auth.json')
     print("Using auth_file", auth_file)
     return auth_file
+
+@lru_cache(maxsize=1)
+def get_controlnet_dir() -> str:
+    from modules.shared import opts
+    cnet_models_path = opts.data.get('control_net_modules_path', None)
+    if not cnet_models_path:
+        cnet_extension_path = os.path.join(basepath, 'extensions', 'sd-webui-controlnet')
+        if not os.path.exists(cnet_extension_path):
+            print(f"Could not find controlnet extension at {cnet_extension_path}")
+            return ""
+        cnet_models_path = os.path.join(cnet_extension_path, 'models')
+    return cnet_models_path

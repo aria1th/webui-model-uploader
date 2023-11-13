@@ -8,7 +8,7 @@ import gradio as gr
 from scripts.uploader import Connection
 from scripts.download_models import download_controlnet_xl_models, download_controlnet_v11_models, download_model_by_name
 import json
-from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir, basepath
+from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir, basepath, get_controlnet_dir
 from scripts.auxilary_api import add_token_count_api
 from scripts.auth import secure_post, secure_get, secure_put, secure_delete, init_auth
 
@@ -45,16 +45,12 @@ class ModelListResponse(BaseModel):
     message: str
     
 def call_download_controlnet_xl():
+    """
+    Calls download_controlnet_xl_models
+    """
     try:
-        from modules.shared import opts
-        cnet_models_path = opts.data.get('control_net_modules_path', None)
-        if not cnet_models_path:
-            cnet_extension_path = os.path.join(basepath, 'extensions', 'sd-webui-controlnet')
-            if not os.path.exists(cnet_extension_path):
-                print(f"Could not find controlnet extension at {cnet_extension_path}")
-                return False
-            cnet_models_path = os.path.join(cnet_extension_path, 'models')
-        if not os.path.exists(cnet_models_path):
+        cnet_models_path = get_controlnet_dir()
+        if not cnet_models_path or not os.path.exists(cnet_models_path):
             print(f"Could not find controlnet models at {cnet_models_path}")
             return False
         download_controlnet_xl_models(cnet_models_path)
@@ -62,18 +58,14 @@ def call_download_controlnet_xl():
     except Exception as e:
         print(f"Could not download controlnet models: {e}")
         return False
-    
+
 def call_download_controlnet_v11():
+    """
+    Calls download_controlnet_v11_models
+    """
     try:
-        from modules.shared import opts
-        cnet_models_path = opts.data.get('control_net_modules_path', None)
-        if not cnet_models_path:
-            cnet_extension_path = os.path.join(basepath, 'extensions', 'sd-webui-controlnet')
-            if not os.path.exists(cnet_extension_path):
-                print(f"Could not find controlnet extension at {cnet_extension_path}")
-                return False
-            cnet_models_path = os.path.join(cnet_extension_path, 'models')
-        if not os.path.exists(cnet_models_path):
+        cnet_models_path = get_controlnet_dir()
+        if not cnet_models_path or not os.path.exists(cnet_models_path):
             print(f"Could not find controlnet models at {cnet_models_path}")
             return False
         download_controlnet_v11_models(cnet_models_path)
@@ -83,16 +75,12 @@ def call_download_controlnet_v11():
         return False
     
 def call_download_model_by_name(name:str):
+    """
+    Calls download_model_by_name
+    """
     try:
-        from modules.shared import opts
-        cnet_models_path = opts.data.get('control_net_modules_path', None)
-        if not cnet_models_path:
-            cnet_extension_path = os.path.join(basepath, 'extensions', 'sd-webui-controlnet')
-            if not os.path.exists(cnet_extension_path):
-                print(f"Could not find controlnet extension at {cnet_extension_path}")
-                return False
-            cnet_models_path = os.path.join(cnet_extension_path, 'models')
-        if not os.path.exists(cnet_models_path):
+        cnet_models_path = get_controlnet_dir()
+        if not cnet_models_path or not os.path.exists(cnet_models_path):
             print(f"Could not find controlnet models at {cnet_models_path}")
             return False
         download_model_by_name(cnet_models_path, name)
