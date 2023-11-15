@@ -31,9 +31,10 @@ def download_models(path:str, models_dict:dict):
     for k, v in tqdm(models_dict.items()):
         # check if file exists
         if os.path.isfile(os.path.join(path, k)):
-            # compare file size
+            # compare file size, when?
+            print(f'File {k} exists, skipping')
             continue
-        print(f'Downloading {k}... at {path}')
+        print(f'Downloading {k} at {path}')
         try:
             r = requests.get(v, allow_redirects=True)
             lock_path = os.path.join(path, k + '.lock')
