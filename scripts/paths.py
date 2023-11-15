@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 import os
+# TODO : make paths as yaml config
 
 filepath = Path(os.path.realpath(__file__))
 # get parent of parent directory
@@ -76,7 +77,14 @@ def get_controlnet_dir() -> str:
     from modules.shared import opts
     cnet_models_path = opts.data.get('control_net_modules_path', None)
     if not cnet_models_path:
-        cnet_extension_path = os.path.join(basepath, 'extensions', 'sd-webui-controlnet')
+        extension_path = os.path.join(basepath, 'extensions')
+        if not os.path.exists(extension_path):
+            # vladmantic fork
+            extension_path = os.path.join(basepath, 'extensions-builtin')
+            if not os.path.exists(extension_path):
+                print(f"Could not find extensions at {basepath}, searched 'extensions' and 'extensions-builtin'")
+                return ""
+        cnet_extension_path = os.path.join(extension_path, 'sd-webui-controlnet')
         if not os.path.exists(cnet_extension_path):
             print(f"Could not find controlnet extension at {cnet_extension_path}")
             return ""
