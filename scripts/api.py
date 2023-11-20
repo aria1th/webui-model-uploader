@@ -185,7 +185,7 @@ def delete_api(app:FastAPI):
                 print(f"Removing empty directory {subdir}")
                 os.rmdir(subdir)
                 return
-        print(f"Directory {subdir} is not empty, not removing")
+        #print(f"Directory {subdir} is not empty, not removing")
         
                 
     @secure_post("/delete/sd_model", response_model=BasicModelResponse)
@@ -380,7 +380,7 @@ def upload_txt_api(app:FastAPI):
             with open(real_file_path, 'wb') as f:
                 f.write(contents)
         except Exception as e:
-            return {"message": "There was an error uploading the file", 'success': False}
+            return {"message": f"There was an error uploading the file : {e}", 'success': False}
         return {"message": f"Successfully saved text to {real_file_path}", 'success': True}
     
         
@@ -432,7 +432,7 @@ def upload_api(app:FastAPI):
                 f.write(contents)
             print(f"Successfully uploaded {file.filename} to {real_file_path}")
         except Exception as e:
-            return {"message": "There was an error uploading the file", 'success': False}
+            return {"message": f"There was an error uploading the file : {e}", 'success': False}
         finally:
             file.file.close()
         # move file to path
@@ -444,7 +444,7 @@ def upload_api(app:FastAPI):
                 os.remove(real_file_path)
             shutil.move(file.filename, real_file_path) 
         except Exception as e:
-            return {"message": f"There was an error moving the {file.filename} to {real_file_path}", 'success': False}
+            return {"message": f"There was an error moving the {file.filename} to {real_file_path} : {e}", 'success': False}
 
         return {"message": f"Successfully uploaded {file.filename} to {real_file_path}", 'success': True}
 
@@ -501,11 +501,11 @@ def fast_file_hash(file_path:str, size_to_read:int=1<<31) -> str:
     Computes a hash of the file at file_path with first 1MB of file, and total file size
     """
     if file_path in file_caches and os.path.exists(file_path):
-        print(f"Using cache for {file_path}")
+        #print(f"Using cache for {file_path}")
         return get_cache(file_path)
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Could not find file at {file_path} at func_fast_file_hash")
-    print(f"Computing hash for {file_path} with size_to_read {size_to_read}...")
+    #print(f"Computing hash for {file_path} with size_to_read {size_to_read}...")
     import hashlib # import hashlib in-context, maybe hashlib is overwritten by other modules
     BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
     sha256 = hashlib.sha256()
@@ -603,7 +603,7 @@ def query_api(app:FastAPI):
             path = os.path.join(basepath, path)
         for root, dirs, files in os.walk(path):
             for file in files:
-                print(root, file)
+                #print(root, file)
                 file_path = os.path.join(root, file)
                 if os.path.isfile(file_path) and file.endswith(".safetensors") or file.endswith(".ckpt") or file.endswith(".pt"):
                     file_path_without_basepath = file_path.replace(basepath+'\\', "").replace(basepath+'/', "")
