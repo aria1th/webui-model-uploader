@@ -2,6 +2,7 @@
 #pip install python-multipart for fastapi.File
 import os
 import shutil
+import time
 from threading import Lock
 from fastapi import File, UploadFile, FastAPI, Form
 from pydantic import BaseModel
@@ -690,6 +691,7 @@ def query_api(app:FastAPI):
         Returns all hashes of all loras in path.
         path may be some folder path
         """
+        started_at = time.time()
         json_response = {'success' : False}
         if path is None or path == "":
             path = get_lora_ckpt_dir()
@@ -702,6 +704,8 @@ def query_api(app:FastAPI):
             json_response['message'] = f"Path {path} is not a directory"
             return json_response
         # recursive
+        time_elapsed = time.time() - started_at
+        json_response['time_elapsed'] = time_elapsed
         json_response['hashes'] = walk_get_hashes(path, get_lora_ckpt_dir(), size_to_read=size_to_read)
         json_response['success'] = True
         return json_response
@@ -712,6 +716,7 @@ def query_api(app:FastAPI):
         Returns all hashes of all vaes in path.
         path may be some folder path
         """
+        started_at = time.time()
         json_response = {'success' : False}
         if path is None or path == "":
             path = get_vae_ckpt_dir()
@@ -723,6 +728,8 @@ def query_api(app:FastAPI):
         if not os.path.isdir(path):
             json_response['message'] = f"Path {path} is not a directory"
             return json_response
+        time_elapsed = time.time() - started_at
+        json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
         json_response['hashes'] = walk_get_hashes(path, get_vae_ckpt_dir(), size_to_read=size_to_read)
         return json_response
@@ -733,6 +740,7 @@ def query_api(app:FastAPI):
         Returns all hashes of all sds in path.
         path may be some folder path
         """
+        started_at = time.time()
         json_response = {'success' : False}
         if path is None or path == "":
             path = get_sd_ckpt_dir()
@@ -744,6 +752,8 @@ def query_api(app:FastAPI):
         if not os.path.isdir(path):
             json_response['message'] = f"Path {path} is not a directory"
             return json_response
+        time_elapsed = time.time() - started_at
+        json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
         json_response['hashes'] = walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
         return json_response
@@ -754,6 +764,7 @@ def query_api(app:FastAPI):
         Returns all hashes of all embeddings in path.
         path may be some folder path
         """
+        started_at = time.time()
         json_response = {'success' : False}
         if path is None or path == "":
             path = get_textual_inversion_dir()
@@ -765,6 +776,8 @@ def query_api(app:FastAPI):
         if not os.path.isdir(path):
             json_response['message'] = f"Path {path} is not a directory"
             return json_response
+        time_elapsed = time.time() - started_at
+        json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
         json_response['hashes'] = walk_get_hashes(path, get_textual_inversion_dir(), size_to_read=size_to_read)
         return json_response
@@ -775,6 +788,7 @@ def query_api(app:FastAPI):
         Returns all hashes of everything in path.
         path may be some folder path
         """
+        started_at = time.time()
         json_response_merged = {'success' : False}
         hashes = {'lora':None, 'vae':None, 'sd':None, 'textual_inversion':None}
         json_response_merged['hashes'] = hashes
@@ -786,7 +800,9 @@ def query_api(app:FastAPI):
         hashes['vae'] = vae_hashes_result['hashes']
         hashes['sd'] = sd_hashes_result['hashes']
         hashes['textual_inversion'] = textual_inversion_hashes_result['hashes']
+        time_elapsed = time.time() - started_at
         json_response_merged['success'] = True
+        json_response_merged['time_elapsed'] = time_elapsed
         return json_response_merged
     
     
