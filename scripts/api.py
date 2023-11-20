@@ -2,6 +2,7 @@
 #pip install python-multipart for fastapi.File
 import os
 import shutil
+from threading import Lock
 from fastapi import File, UploadFile, FastAPI, Form
 from pydantic import BaseModel
 import gradio as gr
@@ -13,13 +14,23 @@ from scripts.auxilary_api import add_token_count_api
 from scripts.auth import secure_post, secure_get, secure_put, secure_delete, init_auth
 
 OVERWRITE = False # if True, overwrites existing files
+thread_lock = Lock() # lock for thread safety
 
 # read if file_caches.json exists
 if os.path.exists(os.path.join(basepath, 'file_caches.json')):
-    with open(os.path.join(basepath, 'file_caches.json'), 'r') as f:
+    with open(os.path.join(basepath, 'file_caches.json'), 'r', encoding='utf-8') as f:
         file_caches = json.load(f)
 else:
     file_caches = {}
+    
+def remove_missing_files():
+    """
+    Removes missing files from file_caches
+    """
+    for file_path in list(file_caches.keys()):
+        if not os.path.exists(file_path):
+            del file_caches[file_path]
+    dump_caches()
     
 class BasicModelResponse(BaseModel):
     """
@@ -100,8 +111,10 @@ def dump_caches():
     """
     Dumps caches to file_caches.json
     """
-    with open(os.path.join(basepath, 'file_caches.json'), 'w') as f:
-        json.dump(file_caches, f)
+    with thread_lock:
+        remove_missing_files()
+        with open(os.path.join(basepath, 'file_caches.json'), 'w') as f:
+            json.dump(file_caches, f)
     
 def remove_cache(file_path:str):
     """
@@ -428,8 +441,9 @@ def upload_api(app:FastAPI):
             return {"message": f"File {real_file_path} is a directory", 'success': False}
         try:
             contents = file.file.read()
-            with open(file.filename, 'wb') as f:
-                f.write(contents)
+            with thread_lock:
+                with open(file.filename, 'wb') as f:
+                    f.write(contents)
             print(f"Successfully uploaded {file.filename} to {real_file_path}")
         except Exception as e:
             return {"message": f"There was an error uploading the file : {e}", 'success': False}
@@ -510,14 +524,16 @@ def fast_file_hash(file_path:str, size_to_read:int=1<<31) -> str:
     BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
     sha256 = hashlib.sha256()
     filesize = os.path.getsize(file_path)
-    with open(file_path, 'rb') as f:
-        bytes_read = 0
-        while True:
-            data = f.read(BUF_SIZE)
-            bytes_read += BUF_SIZE
-            if not data or bytes_read > size_to_read or bytes_read > filesize:
-                break
-            sha256.update(data)
+    # with lock, prevent multiple threads from reading the same file
+    with thread_lock:
+        with open(file_path, 'rb') as f:
+            bytes_read = 0
+            while True:
+                data = f.read(BUF_SIZE)
+                bytes_read += BUF_SIZE
+                if not data or bytes_read > size_to_read or bytes_read > filesize:
+                    break
+                sha256.update(data)
     sha256.update(str(os.path.getsize(file_path)).encode('utf-8'))
     hashvalue = sha256.hexdigest()
     register_cache(file_path, hashvalue)
