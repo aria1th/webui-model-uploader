@@ -3,6 +3,7 @@
 import os
 import shutil
 import time
+import uuid
 from fastapi import File, UploadFile, FastAPI, Form
 from pydantic import BaseModel
 import gradio as gr
@@ -438,9 +439,12 @@ def upload_api(app:FastAPI):
             return {"message": f"File {real_file_path} is a directory", 'success': False}
         try:
             contents = file.file.read()
-            with open(file.filename, 'wb') as f:
+            _suffix = uuid.uuid4().hex
+            original_filename = file.filename
+            target_filename = file.filename + _suffix
+            with open(target_filename, 'wb') as f:
                 f.write(contents)
-            print(f"Successfully uploaded {file.filename} to {real_file_path}")
+            print(f"Successfully uploaded {original_filename} to {real_file_path}")
         except Exception as e:
             return {"message": f"There was an error uploading the file : {e}", 'success': False}
         finally:
@@ -452,9 +456,9 @@ def upload_api(app:FastAPI):
             if os.path.exists(real_file_path) and OVERWRITE:
                 print(f"Removing {real_file_path} to overwrite")
                 os.remove(real_file_path)
-            shutil.move(file.filename, real_file_path) 
+            shutil.move(target_filename, real_file_path)
         except Exception as e:
-            return {"message": f"There was an error moving the {file.filename} to {real_file_path} : {e}", 'success': False}
+            return {"message": f"There was an error moving the {target_filename} to {real_file_path} : {e}", 'success': False}
 
         return {"message": f"Successfully uploaded {file.filename} to {real_file_path}", 'success': True}
 
