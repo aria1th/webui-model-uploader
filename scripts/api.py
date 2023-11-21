@@ -16,6 +16,9 @@ from scripts.auth import secure_post, secure_get, secure_put, secure_delete, ini
 
 OVERWRITE = False # if True, overwrites existing files
 
+# saving context, to prevent multiple threads from reading the same file
+is_saving = False
+
 # read if file_caches.json exists
 if os.path.exists(os.path.join(basepath, 'file_caches.json')):
     with open(os.path.join(basepath, 'file_caches.json'), 'r', encoding='utf-8') as f:
@@ -110,9 +113,14 @@ def dump_caches():
     """
     Dumps caches to file_caches.json
     """
+    global is_saving
     remove_missing_files()
+    if is_saving:
+        return
+    is_saving = True
     with open(os.path.join(basepath, 'file_caches.json'), 'w') as f:
         json.dump(file_caches, f)
+    is_saving = False
     
 def remove_cache(file_path:str):
     """
