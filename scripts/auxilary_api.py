@@ -17,7 +17,7 @@ class TokenCountResponse(BaseModel):
 
 def add_token_count_api(app : FastAPI):
     @secure_post('/sdapi/v1/count_tokens', response_model=TokenCountResponse)
-    def token_count(prompt:str = Form()):
+    async def token_count(prompt:str = Form()):
         """
         Returns the token count and max length of the prompt
         example : curl -X POST "http://localhost:7861/sdapi/v1/count_tokens" -H  "accept: application/json" -H  "Content-Type: application/x-www-form-urlencoded" -d "prompt=Hello%20World"
