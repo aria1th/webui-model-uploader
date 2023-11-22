@@ -105,8 +105,12 @@ class Connection:
         if not self.target_ap_address.startswith('http://') and not self.target_ap_address.startswith('https://'):
             self.target_ap_address = 'http://' + self.target_ap_address
         if auth:
-            self.session.auth = auth.split(':')
-            
+            if isinstance(auth, str):
+                self.session.auth = tuple(auth.split(':'))
+            elif isinstance(auth, (list, tuple)) and len(auth) == 2:
+                self.session.auth = auth
+            else:
+                raise ValueError(f"auth should be 'username:password' or ('username', 'password'), received {auth}")
     def create_self_request(self, accessor:str = 'models/query_hash_vae', data= None) -> requests.Response:
         """
         Post request to required path
