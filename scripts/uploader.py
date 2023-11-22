@@ -25,11 +25,13 @@ except (ImportError, ModuleNotFoundError):
 def get_port():
     try:
         from modules.shared import cmd_opts
+        if cmd_opts.port is None:
+            print("Fallback to default port 7860")
+            return 7860
         return cmd_opts.port
     except (ImportError, ModuleNotFoundError):
         print("Fallback to default port 7860")
         return 7860
-    
 
 filepath = Path(os.path.realpath(__file__))
 basepath = None
@@ -275,7 +277,6 @@ class Connection:
         """
             Syncs all models with the server
         """
-        
         for model_path in glob.glob(get_vae_ckpt_dir() + '/**/*.safetensors', recursive=True):
             print("Syncing", model_path, "to", self.target_ap_address)
             base_ckpt_dir = get_vae_ckpt_dir()
