@@ -243,6 +243,7 @@ def delete_api(app:FastAPI):
     async def delete_sd_model(model_path:str = Form("")):
         """
         Deletes a Stable-diffusion model at <root>/models/Stable-diffusion/<model_path>
+        curl -X POST -F "model_path=test" http://test.api.address/delete/sd_model
         """
         # curl -X POST -F "model_path=test" http://test.api.address/delete/sd_model
         file_path = os.path.join(get_sd_ckpt_dir(), model_path)
@@ -271,6 +272,7 @@ def delete_api(app:FastAPI):
     async def delete_lora_model(model_path:str = Form("")):
         """
         Deletes a LoRA model at <root>/models/LoRA/<model_path>
+        curl -X POST -F "model_path=test" http://test.api.address/delete/lora_model
         """
         # curl -X POST -F "model_path=test" http://test.api.address/delete/lora_model
         file_path = os.path.join(get_lora_ckpt_dir(), model_path)
@@ -284,6 +286,7 @@ def delete_api(app:FastAPI):
     async def delete_textual_inversion_model(model_path:str = Form("")):
         """
         Deletes a textual inversion model at <root>/embeddings/<model_path>
+        curl -X POST -F "model_path=test" http://test.api.address/delete/embedding
         """
         # curl -X POST -F "model_path=test" http://test.api.address/delete/embedding
         file_path = os.path.join(get_textual_inversion_dir(), model_path)
@@ -424,12 +427,41 @@ def remove_cache_api(app:FastAPI):
     async def remove_cache_api_endpoint(file_path:str = Form("")):
         """
         Removes the cache for file_path
+        curl -X POST -F "file_path=some_path/data.safetensors" "http://localhost:7860/remove_cache"
         """
         if file_path in file_caches:
             remove_cache(file_path)
             return {"message": f"Successfully removed cache for {file_path}", 'success': True}
         else:
             return {"message": f"Could not find cache for {file_path}", 'success': False}
+        
+    @secure_post("/remove_all_caches", response_model=BasicModelResponse)
+    async def remove_all_caches_api_endpoint():
+        """
+        Removes all caches
+        curl -X POST "http://localhost:7860/remove_all_caches"
+        """
+        global file_caches
+        file_caches = {}
+        dump_caches()
+        return {"message": f"Successfully removed all caches", 'success': True}
+    
+    @secure_post("/remove_missing_files", response_model=BasicModelResponse)
+    async def remove_missing_files_api_endpoint():
+        """
+        Removes all missing files from file_caches
+        curl -X POST "http://localhost:7860/remove_missing_files"
+        """
+        remove_missing_files()
+        return {"message": f"Successfully removed missing files", 'success': True}
+    
+    @secure_post("/get_cache_list")
+    async def get_cache_list_api_endpoint():
+        """
+        Gets a list of cached files
+        curl -X POST "http://localhost:7860/get_cache_list"
+        """
+        return {"message": "", 'success': True, 'caches': list(file_caches.keys())}
         
 def upload_txt_api(app:FastAPI):
     """
@@ -477,6 +509,7 @@ def upload_api(app:FastAPI):
     async def upload(file: UploadFile = File(...), path: str = Form('./tmp'), modeltype:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a file to path
+        Usage: curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "path=subpath" -F "custom_name=a.safetensors http://localhost:7860/upload
         """
         async with handle_file_access(file.filename):
             # get path
@@ -530,6 +563,7 @@ def upload_api(app:FastAPI):
     async def upload_sd_model(file:UploadFile = File(...), sd_path:str= Form(""), custom_name:str = Form("")):
         """
         Uploads a Stable-diffusion model to <root>/models/Stable-diffusion/<sd_path>/<sd_model_name>
+        Usage: curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "sd_path=test" http://localhost:7860/upload_sd_model
         """
         # upload file to <root>/models/Stable-diffusion/<sd_model_name>/<sd_model_name>
         # sd_model_name may be a.safetensors or /sd_path/../<model_name>
@@ -540,6 +574,7 @@ def upload_api(app:FastAPI):
     async def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a VAE model to <root>/models/VAE/<vae_path>/<vae_model_name>
+        Usage: curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "vae_path=test" http://localhost:7860/upload_vae_model
         """
         # upload file to <root>/models/VAE/<vae_path>/<vae_model_name>
         assert '../' not in vae_path, "vae_path must not contain ../"
@@ -549,6 +584,7 @@ def upload_api(app:FastAPI):
     async def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a LoRA model to <root>/models/LoRA/<lora_path>/<lora_model_name>
+        Usage: curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://localhost:7860/upload_lora_model
         """
         # upload file to <root>/models/LoRA/<lora_path>/<lora_model_name>
         # l /lora_path/<model_name>
@@ -560,6 +596,7 @@ def upload_api(app:FastAPI):
     async def upload_textual_inversion_model(file:UploadFile = File(...), textual_inversion_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a textual inversion model to <root>/embeddings/<textual_inversion_path>/<textual_inversion_model_name>
+        Usage: curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "textual_inversion_path=test" http://localhost:7860/upload_embedding
         """
         # upload file to <root>/embeddings/<textual_inversion_path>/<textual_inversion_model_name>
         # l /textual_inversion_path/<model_name>
@@ -612,6 +649,8 @@ def download_controlnet_models_api(app:FastAPI):
     async def download_controlnet_models_api_endpoint_xl():
         """
         Downloads controlnet models to <root>/models/controlnet/
+        Usage:
+        curl -X POST http://localhost:7860/download_controlnet_models/xl
         """
         # curl -X POST http://127.0.0.1:7860/download_controlnet_models/xl
         result = call_download_controlnet_xl()
@@ -624,6 +663,8 @@ def download_controlnet_models_api(app:FastAPI):
     async def download_controlnet_models_api_endpoint_v11():
         """
         Downloads controlnet models to <root>/models/controlnet/
+        Usage:
+        curl -X POST http://localhost:7860/download_controlnet_models/v11
         """
         # curl -X POST http://127.0.0.1:7860/download_controlnet_models/v11
         result = call_download_controlnet_v11()
@@ -636,6 +677,8 @@ def download_controlnet_models_api(app:FastAPI):
     async def download_controlnet_models_api_endpoint_by_name(name:str = Form("")):
         """
         Downloads controlnet models to <root>/models/controlnet/
+        Usage:
+        curl -X POST -F "name=openpose-controlnet" http://localhost:7860/download_controlnet_models/by_name
         """
         # curl -X POST -F "name=controlnet_xl" http://127.0.0.1:7860/download_controlnet_models/by_name
         if name == "":
@@ -650,6 +693,8 @@ def download_controlnet_models_api(app:FastAPI):
     async def list_controlnet_models():
         """
         Lists controlnet models
+        Usage:
+        curl -X POST http://localhost:7860/download_controlnet_models/list
         """
         # curl -X POST http://127.0.0.1:7860/download_controlnet_models/list
         from scripts.download_models import list_controlnet_models
@@ -872,6 +917,7 @@ def query_api(app:FastAPI):
         """
         Returns the hash of the file at path.
         path may be Stable-diffusion/<model_name>
+        Usage : curl -X POST -F "path=some_path/data.safetensors" "http://localhost:7860/models/query_hash" -u username:password
         """
         return get_hash(path, size_to_read=size_to_read)
     
@@ -880,6 +926,7 @@ def query_api(app:FastAPI):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get LoRA/<model_name>)
+        Usage : curl -X POST -F "path=some_path/data.safetensors" "http://localhost:7860/models/query_hash_lora" -u username:password
         """
         return get_hash_lora(path, size_to_read=size_to_read)
     @secure_post("/models/query_hash_vae", response_model=HashModelResponse)
@@ -887,6 +934,7 @@ def query_api(app:FastAPI):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get VAE/<model_name>)
+        Usage : curl -X POST -F "path=some_path/data.safetensors" "http://localhost:7860/models/query_hash_vae" -u username:password
         """
         return get_hash_vae(path, size_to_read=size_to_read)
     @secure_post("/models/query_hash_sd", response_model=HashModelResponse)
@@ -894,6 +942,7 @@ def query_api(app:FastAPI):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get Stable-diffusion/<model_name>)
+        Usage : curl -X POST -F "path=some_path/data.safetensors" "http://localhost:7860/models/query_hash_sd" -u username:password
         """
         return get_hash_sd(path, size_to_read=size_to_read)
     @secure_post("/models/query_hash_embedding", response_model=HashModelResponse)
@@ -901,6 +950,7 @@ def query_api(app:FastAPI):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get embeddings/<model_name>)
+        Usage : curl -X POST -F "path=some_path/data.safetensors" "http://localhost:7860/models/query_hash_embedding" -u username:password
         """
         return get_hash_textual_inversion(path, size_to_read=size_to_read)
     @secure_post("/models/query_hash_lora_all")
@@ -908,6 +958,7 @@ def query_api(app:FastAPI):
         """
         Returns all hashes of all loras in path.
         path may be some folder path
+        Usage : curl -X POST -F "path=some_path" "http://localhost:7860/models/query_hash_lora_all" -u username:password
         """
         return get_hash_lora_all(path, size_to_read=size_to_read)
     @secure_post("/models/query_hash_vae_all")
@@ -915,6 +966,7 @@ def query_api(app:FastAPI):
         """
         Returns all hashes of all vaes in path.
         path may be some folder path
+        Usage : curl -X POST -F "path=some_path" "http://localhost:7860/models/query_hash_vae_all" -u username:password
         """
         return get_hash_vae_all(path, size_to_read=size_to_read)
     @secure_post("/models/query_hash_sd_all")
@@ -922,6 +974,7 @@ def query_api(app:FastAPI):
         """
         Returns all hashes of all sds in path.
         path may be some folder path
+        Usage : curl -X POST -F "path=some_path" "http://localhost:7860/models/query_hash_sd_all" -u username:password
         """
         return get_hash_sd_all(path, size_to_read=size_to_read)
     @secure_post("/models/query_hash_embedding_all")
@@ -929,6 +982,7 @@ def query_api(app:FastAPI):
         """
         Returns all hashes of all embeddings in path.
         path may be some folder path
+        Usage : curl -X POST -F "path=some_path" "http://localhost:7860/models/query_hash_embedding_all" -u username:password
         """
         return get_hash_textual_inversion_all(path, size_to_read=size_to_read)
     @secure_post("/models/query_hash_all")
@@ -936,6 +990,7 @@ def query_api(app:FastAPI):
         """
         Returns all hashes of everything in path.
         path may be some folder path
+        Usage : curl -X POST -F "path=some_path" "http://localhost:7860/models/query_hash_all" -u username:password
         """
         return get_hash_all(path, size_to_read=size_to_read)
     
