@@ -70,6 +70,14 @@ def progress_callback(monitor) -> None:
     percentage = monitor.bytes_read / monitor.len * 100
     print("Uploaded: ", monitor.bytes_read, " of ", monitor.len, " bytes", f"{percentage:.2f}%")
 
+def decorate_check_connection(func):
+    """
+    Decorator that checks if the server is running
+    """
+    def wrapper(self, *args, **kwargs):
+        self.check_connection()
+        return func(self, *args, **kwargs)
+    return wrapper
 class Connection:
     """
         Connects and handles the communication with the server
@@ -120,15 +128,6 @@ class Connection:
             pbar.update(monitor.bytes_read - pbar.n)
         return callback
         
-    def decorate_check_connection(func):
-        """
-        Decorator that checks if the server is running
-        """
-        def wrapper(self, *args, **kwargs):
-            self.check_connection()
-            return func(self, *args, **kwargs)
-        return wrapper
-        
     def check_connection(self) -> bool:
         """
         Send GET request to "/uploader/ping" to check if server is running
@@ -137,7 +136,7 @@ class Connection:
         response = self.session.get(url)
         if response.status_code == 200:
             return True
-        raise Exception('Server not running')
+        raise ConnectionRefusedError(f'Server not running at {self.target_ap_address}, status {response.status_code}, {response.text}')
     
     def send_data(self, file_binary: bytes,
                   model_path_arg:str = 'sd_path',
@@ -339,7 +338,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise FileNotFoundError(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_sd'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -352,7 +351,7 @@ class Connection:
                 return self.upload_sd_model(model_path)
             return {"message": "Ther file hash matched with request", 'success': True}
         else:
-            raise Exception('Server does not support Model Syncing')
+            raise ConnectionRefusedError(f'Server does not support Model Syncing, status {server_hash_response.status_code}, {server_hash_response.text}')
             
     @standalone
     @decorate_check_connection
@@ -374,7 +373,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise FileNotFoundError(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_vae'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -387,7 +386,7 @@ class Connection:
                 return self.upload_vae_model(model_path)
             return {"message": "Ther file hash matched with request", 'success': True}
         else:
-            raise Exception('Server does not support Model Syncing')
+            raise ConnectionRefusedError(f'Server does not support Model Syncing, status {server_hash_response.status_code}, {server_hash_response.text}')
         
     @standalone
     @decorate_check_connection
@@ -409,7 +408,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise FileNotFoundError(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_lora'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -422,7 +421,7 @@ class Connection:
                 return self.upload_lora_model(model_path)
             return {"message": "Ther file hash matched with request", 'success': True}
         else:
-            raise Exception('Server does not support Model Syncing')
+            raise ConnectionRefusedError(f'Server does not support Model Syncing, status {server_hash_response.status_code}, {server_hash_response.text}')
     
     @standalone
     @decorate_check_connection
@@ -444,7 +443,7 @@ class Connection:
         self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
-            raise Exception(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
+            raise FileNotFoundError(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
         # server
         server_target_access = self.target_ap_address + 'models/query_hash_embedding'
         server_hash_response = self.session.post(server_target_access, data={'path': model_path})
@@ -457,4 +456,4 @@ class Connection:
                 return self.upload_textual_inversion_model(model_path)
             return {"message": "Ther file hash matched with request", 'success': True}
         else:
-            raise Exception('Server does not support Model Syncing')
+            raise ConnectionRefusedError(f'Server does not support Model Syncing, status {server_hash_response.status_code}, {server_hash_response.text}')
