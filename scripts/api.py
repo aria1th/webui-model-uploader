@@ -20,6 +20,8 @@ OVERWRITE = False # if True, overwrites existing files
 
 # saving context, to prevent multiple threads from reading the same file
 file_locks = {}
+# atomic boolen to prevent multiple threads from saving at the same time
+is_saving = False
 class FileAccessContextManager:
     """
     Context Manager that locks a file path
