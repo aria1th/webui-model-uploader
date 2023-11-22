@@ -4,6 +4,8 @@ import os
 import shutil
 import time
 import uuid
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import File, UploadFile, FastAPI, Form
 from pydantic import BaseModel
 import gradio as gr
@@ -17,7 +19,31 @@ from scripts.auth import secure_post, secure_get, secure_put, secure_delete, ini
 OVERWRITE = False # if True, overwrites existing files
 
 # saving context, to prevent multiple threads from reading the same file
+file_locks = {}
+# atomic boolen to prevent multiple threads from saving at the same time
 is_saving = False
+class FileAccessContextManager:
+    """
+    Context Manager that locks a file path
+    """
+    def __init__(self, path):
+        self.path = path
+        self.lock = file_locks.setdefault(path, asyncio.Lock())
+
+    async def __aenter__(self):
+        await self.lock.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.lock.release()
+
+@asynccontextmanager
+async def handle_file_access(path):
+    """
+    Handles file access
+    """
+    async with FileAccessContextManager(path) as manager:
+        yield
 
 # read if file_caches.json exists
 if os.path.exists(os.path.join(basepath, 'file_caches.json')):
@@ -143,7 +169,7 @@ def upload_root_api(app:FastAPI):
     Bind ping response to app
     """
     @secure_get("/uploader/ping")
-    def respond_ping():
+    async def respond_ping():
         """
         curl http://test.api.address/uploader/ping
         """
@@ -208,7 +234,7 @@ def delete_api(app:FastAPI):
         
                 
     @secure_post("/delete/sd_model", response_model=BasicModelResponse)
-    def delete_sd_model(model_path:str = Form("")):
+    async def delete_sd_model(model_path:str = Form("")):
         """
         Deletes a Stable-diffusion model at <root>/models/Stable-diffusion/<model_path>
         """
@@ -221,7 +247,7 @@ def delete_api(app:FastAPI):
             return {"message": f"Could not find {file_path}", 'success': False}
         
     @secure_post("/delete/vae_model", response_model=BasicModelResponse)
-    def delete_vae_model(model_path:str = Form("")):
+    async def delete_vae_model(model_path:str = Form("")):
         """
         Deletes a VAE model at <root>/models/VAE/<model_path>
         Example curl request with basic auth:
@@ -236,7 +262,7 @@ def delete_api(app:FastAPI):
             return {"message": f"Could not find {file_path}", 'success': False}
         
     @secure_post("/delete/lora_model", response_model=BasicModelResponse)
-    def delete_lora_model(model_path:str = Form("")):
+    async def delete_lora_model(model_path:str = Form("")):
         """
         Deletes a LoRA model at <root>/models/LoRA/<model_path>
         """
@@ -249,7 +275,7 @@ def delete_api(app:FastAPI):
             return {"message": f"Could not find {file_path}", 'success': False}
         
     @secure_post("/delete/embedding", response_model=BasicModelResponse)
-    def delete_textual_inversion_model(model_path:str = Form("")):
+    async def delete_textual_inversion_model(model_path:str = Form("")):
         """
         Deletes a textual inversion model at <root>/embeddings/<model_path>
         """
@@ -268,7 +294,7 @@ def sync_api(app:FastAPI):
     Binds sync API with app
     """
     @secure_post("/sync/sd_model", response_model=BasicModelResponse)
-    def sync_sd_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
+    async def sync_sd_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://<target>/" -F "model_path=<model_name>" http://<this>:<port>/sync/sd_model
         """
@@ -279,7 +305,7 @@ def sync_api(app:FastAPI):
             return {"message": str(e), 'success': False}
     
     @secure_post("/sync/vae_model", response_model=BasicModelResponse)
-    def sync_vae_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
+    async def sync_vae_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://<this>:<port>/sync/vae_model
         """
@@ -290,7 +316,7 @@ def sync_api(app:FastAPI):
             return {"message": str(e), 'success': False}
         
     @secure_post("/sync/lora_model", response_model=BasicModelResponse)
-    def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
+    async def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/lora_model
         
@@ -302,7 +328,7 @@ def sync_api(app:FastAPI):
             return {"message": str(e), 'success': False}
         
     @secure_post("/sync/embedding", response_model=BasicModelResponse)
-    def sync_textual_inversion_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
+    async def sync_textual_inversion_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" -F "model_path=test/test.safetensors" http://127.0.0.1:7860/sync/embedding
         """
@@ -313,7 +339,7 @@ def sync_api(app:FastAPI):
             return {"message": str(e), 'success': False}
         
     @secure_post("/sync/all_sd_models", response_model=BasicModelResponse)
-    def sync_all_sd_models(target_api_address:str = Form(""), auth:str = Form("")):
+    async def sync_all_sd_models(target_api_address:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" http://127.0.0.1:7860/sync/all_sd_models
         """
@@ -325,7 +351,7 @@ def sync_api(app:FastAPI):
             return {"message": str(e), 'success': False}
         
     @secure_post("/sync/all_vae_models", response_model=BasicModelResponse)
-    def sync_all_vae_models(target_api_address:str = Form(""), auth:str = Form("")):
+    async def sync_all_vae_models(target_api_address:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" http://localhost:7860/sync/all_vae_models
         """
@@ -337,7 +363,7 @@ def sync_api(app:FastAPI):
             return {"message": str(e), 'success': False}
         
     @secure_post("/sync/all_lora_models", response_model=BasicModelResponse)
-    def sync_all_lora_models(target_api_address:str = Form(""), auth:str = Form("")):
+    async def sync_all_lora_models(target_api_address:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" http://localhost:7860/sync/all_lora_models
         """
@@ -349,7 +375,7 @@ def sync_api(app:FastAPI):
             return {"message": str(e), 'success': False}
         
     @secure_post("/sync/all_models", response_model=BasicModelResponse)
-    def sync_all_models(target_api_address:str = Form(""), auth:str = Form("")):
+    async def sync_all_models(target_api_address:str = Form(""), auth:str = Form("")):
         """
         curl -X POST -F "target_api_address=http://test.api.address/" http://localhost:7860/sync/all_models
         """
@@ -365,7 +391,7 @@ def remove_cache_api(app:FastAPI):
     Binds remove_cache API to app
     """
     @secure_post("/remove_cache", response_model=BasicModelResponse)
-    def remove_cache_api_endpoint(file_path:str = Form("")):
+    async def remove_cache_api_endpoint(file_path:str = Form("")):
         """
         Removes the cache for file_path
         """
@@ -382,7 +408,7 @@ def upload_txt_api(app:FastAPI):
     """
     
     @secure_post("/upload_dynamic_prompts", response_model=BasicModelResponse)
-    def upload_dynamic_prompts(text: UploadFile = File(...), path: str = Form("")):
+    async def upload_dynamic_prompts(text: UploadFile = File(...), path: str = Form("")):
         """
         Saves text to path
         curl -X POST -F "text=@C:\\Users\\UserName\\Downloads\\test.txt" -F "path=dynamic_prompts/test.txt" http://localhost:7860/upload_dynamic_prompts
@@ -391,15 +417,15 @@ def upload_txt_api(app:FastAPI):
         # check if sd-dynamic-prompts exists
         if not os.path.exists(os.path.join(basepath, 'extensions', 'sd-dynamic-prompts')):
             return {"message": "Could not find sd-dynamic-prompts extension", 'success': False}
-        
-        real_file_path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', path, text.filename)
-        os.makedirs(os.path.dirname(real_file_path), exist_ok=True)
-        try:
-            contents = text.file.read()
-            with open(real_file_path, 'wb') as f:
-                f.write(contents)
-        except Exception as e:
-            return {"message": f"There was an error uploading the file : {e}", 'success': False}
+        async with handle_file_access(text.filename):
+            real_file_path = os.path.join(basepath, 'extensions', 'sd-dynamic-prompts', 'wildcards', path, text.filename)
+            os.makedirs(os.path.dirname(real_file_path), exist_ok=True)
+            try:
+                contents = text.file.read()
+                with open(real_file_path, 'wb') as f:
+                    f.write(contents)
+            except Exception as e:
+                return {"message": f"There was an error uploading the file : {e}", 'success': False}
         return {"message": f"Successfully saved text to {real_file_path}", 'success': True}
     
         
@@ -408,7 +434,7 @@ def upload_api(app:FastAPI):
     Binds API to app
     """
     @secure_post("/upload_options/overwrite", response_model=BasicModelResponse)
-    def set_overwrite_api(overwrite_:bool):
+    async def set_overwrite_api(overwrite_:bool):
         """
         Sets overwrite to overwrite_
         curl -X POST -F "overwrite_=True" http://test.api.address/upload_options/overwrite
@@ -418,79 +444,79 @@ def upload_api(app:FastAPI):
     
     @secure_post("/upload", response_model=BasicModelResponse)
         # test with {'file': open('images/1.png', 'rb')}
-    def upload(file: UploadFile = File(...), path: str = Form('./tmp'), modeltype:str = Form(""), custom_name:str = Form("")):
+    async def upload(file: UploadFile = File(...), path: str = Form('./tmp'), modeltype:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a file to path
         """
-        # get path
-        if modeltype == "sd":
-            path = os.path.join(get_sd_ckpt_dir(), path)
-        elif modeltype == "vae":
-            path = os.path.join(get_vae_ckpt_dir(), path)
-        elif modeltype == "lora":
-            path = os.path.join(get_lora_ckpt_dir(), path)
-        elif modeltype == "textual_inversion":
-            path = os.path.join(get_textual_inversion_dir(), path)
-        else:
-            return {"message": f"Invalid modeltype {modeltype}", 'success': False}
-        if custom_name:
-            custom_name = custom_name.strip().replace(' ', '_').replace('/', '_').replace('\\', '_') # no path separators allowed
-            # if custom_name does not have extension, add extension '.safetensors'
-            if '.' not in custom_name:
-                custom_name += '.safetensors'
-        else:
-            custom_name = ""
-        real_file_path = os.path.join(path, file.filename if custom_name == "" else custom_name)
-        if os.path.exists(real_file_path) and not OVERWRITE:
-            return {"message": f"File {real_file_path} already exists, set overwrite to True to overwrite", 'success': False}
-        elif os.path.isdir(real_file_path):
-            return {"message": f"File {real_file_path} is a directory", 'success': False}
-        try:
-            contents = file.file.read()
-            _suffix = uuid.uuid4().hex
-            original_filename = file.filename
-            target_filename = file.filename + _suffix
-            with open(target_filename, 'wb') as f:
-                f.write(contents)
-            print(f"Successfully uploaded {original_filename} to {real_file_path}")
-        except Exception as e:
-            return {"message": f"There was an error uploading the file : {e}", 'success': False}
-        finally:
-            file.file.close()
-        # move file to path
-        try:
-            os.makedirs(path, exist_ok=True)
-            remove_cache(real_file_path)
-            if os.path.exists(real_file_path) and OVERWRITE:
-                print(f"Removing {real_file_path} to overwrite")
-                os.remove(real_file_path)
-            shutil.move(target_filename, real_file_path)
-        except Exception as e:
-            return {"message": f"There was an error moving the {target_filename} to {real_file_path} : {e}", 'success': False}
-
+        async with handle_file_access(file.filename):
+            # get path
+            if modeltype == "sd":
+                path = os.path.join(get_sd_ckpt_dir(), path)
+            elif modeltype == "vae":
+                path = os.path.join(get_vae_ckpt_dir(), path)
+            elif modeltype == "lora":
+                path = os.path.join(get_lora_ckpt_dir(), path)
+            elif modeltype == "textual_inversion":
+                path = os.path.join(get_textual_inversion_dir(), path)
+            else:
+                return {"message": f"Invalid modeltype {modeltype}", 'success': False}
+            if custom_name:
+                custom_name = custom_name.strip().replace(' ', '_').replace('/', '_').replace('\\', '_') # no path separators allowed
+                # if custom_name does not have extension, add extension '.safetensors'
+                if '.' not in custom_name:
+                    custom_name += '.safetensors'
+            else:
+                custom_name = ""
+            real_file_path = os.path.join(path, file.filename if custom_name == "" else custom_name)
+            if os.path.exists(real_file_path) and not OVERWRITE:
+                return {"message": f"File {real_file_path} already exists, set overwrite to True to overwrite", 'success': False}
+            elif os.path.isdir(real_file_path):
+                return {"message": f"File {real_file_path} is a directory", 'success': False}
+            try:
+                contents = file.file.read()
+                _suffix = uuid.uuid4().hex
+                original_filename = file.filename
+                target_filename = file.filename + _suffix
+                with open(target_filename, 'wb') as f:
+                    f.write(contents)
+                print(f"Successfully uploaded {original_filename} to {real_file_path}")
+            except Exception as e:
+                return {"message": f"There was an error uploading the file : {e}", 'success': False}
+            finally:
+                file.file.close()
+            # move file to path
+            try:
+                os.makedirs(path, exist_ok=True)
+                remove_cache(real_file_path)
+                if os.path.exists(real_file_path) and OVERWRITE:
+                    print(f"Removing {real_file_path} to overwrite")
+                    os.remove(real_file_path)
+                shutil.move(target_filename, real_file_path)
+            except Exception as e:
+                return {"message": f"There was an error moving the {target_filename} to {real_file_path} : {e}", 'success': False}
         return {"message": f"Successfully uploaded {file.filename} to {real_file_path}", 'success': True}
 
     @secure_post("/upload_sd_model", response_model=BasicModelResponse)
-    def upload_sd_model(file:UploadFile = File(...), sd_path:str= Form(""), custom_name:str = Form("")):
+    async def upload_sd_model(file:UploadFile = File(...), sd_path:str= Form(""), custom_name:str = Form("")):
         """
         Uploads a Stable-diffusion model to <root>/models/Stable-diffusion/<sd_path>/<sd_model_name>
         """
         # upload file to <root>/models/Stable-diffusion/<sd_model_name>/<sd_model_name>
         # sd_model_name may be a.safetensors or /sd_path/../<model_name>
         assert '../' not in sd_path, "sd_model_name must not contain ../"
-        return upload(file, sd_path, "sd", custom_name=custom_name)
+        return await upload(file, sd_path, "sd", custom_name=custom_name)
         
     @secure_post("/upload_vae_model", response_model=BasicModelResponse)
-    def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form(""), custom_name:str = Form("")):
+    async def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a VAE model to <root>/models/VAE/<vae_path>/<vae_model_name>
         """
         # upload file to <root>/models/VAE/<vae_path>/<vae_model_name>
         assert '../' not in vae_path, "vae_path must not contain ../"
-        return upload(file, vae_path, "vae", custom_name=custom_name)
+        return await upload(file, vae_path, "vae", custom_name=custom_name)
 
     @secure_post("/upload_lora_model", response_model=BasicModelResponse)
-    def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form(""), custom_name:str = Form("")):
+    async def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a LoRA model to <root>/models/LoRA/<lora_path>/<lora_model_name>
         """
@@ -498,10 +524,10 @@ def upload_api(app:FastAPI):
         # l /lora_path/<model_name>
         # assert lora_model_name does not contain ../
         assert '../' not in lora_path, "lora_path must not contain ../"
-        return upload(file, lora_path, "lora", custom_name=custom_name)
+        return await upload(file, lora_path, "lora", custom_name=custom_name)
     
     @secure_post("/upload_embedding", response_model=BasicModelResponse)
-    def upload_textual_inversion_model(file:UploadFile = File(...), textual_inversion_path:str = Form(""), custom_name:str = Form("")):
+    async def upload_textual_inversion_model(file:UploadFile = File(...), textual_inversion_path:str = Form(""), custom_name:str = Form("")):
         """
         Uploads a textual inversion model to <root>/embeddings/<textual_inversion_path>/<textual_inversion_model_name>
         """
@@ -509,7 +535,7 @@ def upload_api(app:FastAPI):
         # l /textual_inversion_path/<model_name>
         # assert textual_inversion_model_name does not contain ../
         assert '../' not in textual_inversion_path, "textual_inversion_path must not contain ../"
-        return upload(file, textual_inversion_path, "textual_inversion", custom_name=custom_name)
+        return await upload(file, textual_inversion_path, "textual_inversion", custom_name=custom_name)
     
     # can be used with curl
     #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
@@ -553,7 +579,7 @@ def download_controlnet_models_api(app:FastAPI):
     """
     # TODO: add separate download_controlnet_models API for v11 and xl
     @secure_post("/download_controlnet_models/xl", response_model=BasicModelResponse)
-    def download_controlnet_models_api_endpoint_xl():
+    async def download_controlnet_models_api_endpoint_xl():
         """
         Downloads controlnet models to <root>/models/controlnet/
         """
@@ -565,7 +591,7 @@ def download_controlnet_models_api(app:FastAPI):
             return {"message": "Could not download controlnet models XL", 'success': False}
         
     @secure_post("/download_controlnet_models/v11", response_model=BasicModelResponse)
-    def download_controlnet_models_api_endpoint_v11():
+    async def download_controlnet_models_api_endpoint_v11():
         """
         Downloads controlnet models to <root>/models/controlnet/
         """
@@ -577,7 +603,7 @@ def download_controlnet_models_api(app:FastAPI):
             return {"message": "Could not download controlnet models v11", 'success': False}
         
     @secure_post("/download_controlnet_models/by_name", response_model=BasicModelResponse)
-    def download_controlnet_models_api_endpoint_by_name(name:str = Form("")):
+    async def download_controlnet_models_api_endpoint_by_name(name:str = Form("")):
         """
         Downloads controlnet models to <root>/models/controlnet/
         """
@@ -591,7 +617,7 @@ def download_controlnet_models_api(app:FastAPI):
             return {"message": f"Could not download controlnet models {name}", 'success': False}
         
     @secure_post("/download_controlnet_models/list", response_model=ModelListResponse)
-    def list_controlnet_models():
+    async def list_controlnet_models():
         """
         Lists controlnet models
         """
@@ -636,8 +662,14 @@ def query_api(app:FastAPI):
                         new_dict[file_path_without_basepath] = ""
         return new_dict
     
+    def coroutine_walk_get_hashes(path:str, basepath:str = "", size_to_read:int=1<<31):
+        """
+        Coroutine version of walk_get_hashes
+        """
+        return asyncio.to_thread(walk_get_hashes, path, basepath, size_to_read)
+    
     @secure_post("/models/query_hash", response_model=HashModelResponse)
-    def get_hash(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns the hash of the file at path.
         path may be Stable-diffusion/<model_name>
@@ -651,7 +683,7 @@ def query_api(app:FastAPI):
             return {"message": str(e),"hashvalue":"", 'success': False}
     
     @secure_post("/models/query_hash_lora", response_model=HashModelResponse)
-    def get_hash_lora(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_lora(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get LoRA/<model_name>)
@@ -662,7 +694,7 @@ def query_api(app:FastAPI):
         return wrap_return_hash(path, size_to_read=size_to_read)
     
     @secure_post("/models/query_hash_vae", response_model=HashModelResponse)
-    def get_hash_vae(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_vae(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get VAE/<model_name>)
@@ -671,7 +703,7 @@ def query_api(app:FastAPI):
         return wrap_return_hash(path, size_to_read=size_to_read)
     
     @secure_post("/models/query_hash_sd", response_model=HashModelResponse)
-    def get_hash_sd(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_sd(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get Stable-diffusion/<model_name>)
@@ -681,7 +713,7 @@ def query_api(app:FastAPI):
         return wrap_return_hash(path, size_to_read=size_to_read)
     
     @secure_post("/models/query_hash_embedding", response_model=HashModelResponse)
-    def get_hash_textual_inversion(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_textual_inversion(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get embeddings/<model_name>)
@@ -692,7 +724,7 @@ def query_api(app:FastAPI):
 
     
     @secure_post("/models/query_hash_lora_all")
-    def get_hash_lora_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_lora_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns all hashes of all loras in path.
         path may be some folder path
@@ -713,12 +745,12 @@ def query_api(app:FastAPI):
         # recursive
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
-        json_response['hashes'] = walk_get_hashes(path, get_lora_ckpt_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_lora_ckpt_dir(), size_to_read=size_to_read)
         json_response['success'] = True
         return json_response
         
     @secure_post("/models/query_hash_vae_all")
-    def get_hash_vae_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_vae_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns all hashes of all vaes in path.
         path may be some folder path
@@ -738,11 +770,11 @@ def query_api(app:FastAPI):
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
-        json_response['hashes'] = walk_get_hashes(path, get_vae_ckpt_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_vae_ckpt_dir(), size_to_read=size_to_read)
         return json_response
     
     @secure_post("/models/query_hash_sd_all")
-    def get_hash_sd_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_sd_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns all hashes of all sds in path.
         path may be some folder path
@@ -762,11 +794,13 @@ def query_api(app:FastAPI):
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
-        json_response['hashes'] = walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
+        # run in thread, because walk_get_hashes is blocking
+        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
+        #json_response['hashes'] = walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
         return json_response
     
     @secure_post("/models/query_hash_embedding_all")
-    def get_hash_textual_inversion_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_textual_inversion_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns all hashes of all embeddings in path.
         path may be some folder path
@@ -786,11 +820,11 @@ def query_api(app:FastAPI):
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
-        json_response['hashes'] = walk_get_hashes(path, get_textual_inversion_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_textual_inversion_dir(), size_to_read=size_to_read)
         return json_response
     
     @secure_post("/models/query_hash_all")
-    def get_hash_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    async def get_hash_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
         Returns all hashes of everything in path.
         path may be some folder path
@@ -799,10 +833,11 @@ def query_api(app:FastAPI):
         json_response_merged = {'success' : False}
         hashes = {'lora':None, 'vae':None, 'sd':None, 'textual_inversion':None}
         json_response_merged['hashes'] = hashes
-        lora_hashes_result = get_hash_lora_all(path, size_to_read=size_to_read)
-        vae_hashes_result = get_hash_vae_all(path, size_to_read=size_to_read)
-        sd_hashes_result = get_hash_sd_all(path, size_to_read=size_to_read)
-        textual_inversion_hashes_result = get_hash_textual_inversion_all(path, size_to_read=size_to_read)
+        # responses are async, so we can run them in parallel
+        lora_hashes_result = await get_hash_lora_all(path, size_to_read=size_to_read)
+        vae_hashes_result = await get_hash_vae_all(path, size_to_read=size_to_read)
+        sd_hashes_result = await get_hash_sd_all(path, size_to_read=size_to_read)
+        textual_inversion_hashes_result = await get_hash_textual_inversion_all(path, size_to_read=size_to_read)
         hashes['lora'] = lora_hashes_result['hashes']
         hashes['vae'] = vae_hashes_result['hashes']
         hashes['sd'] = sd_hashes_result['hashes']
