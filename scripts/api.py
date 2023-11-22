@@ -660,6 +660,12 @@ def query_api(app:FastAPI):
                         new_dict[file_path_without_basepath] = ""
         return new_dict
     
+    def coroutine_walk_get_hashes(path:str, basepath:str = "", size_to_read:int=1<<31):
+        """
+        Coroutine version of walk_get_hashes
+        """
+        return asyncio.to_thread(walk_get_hashes, path, basepath, size_to_read)
+    
     @secure_post("/models/query_hash", response_model=HashModelResponse)
     async def get_hash(path:str = Form(""), size_to_read:int=Form(1<<31)):
         """
@@ -737,7 +743,7 @@ def query_api(app:FastAPI):
         # recursive
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
-        json_response['hashes'] = walk_get_hashes(path, get_lora_ckpt_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_lora_ckpt_dir(), size_to_read=size_to_read)
         json_response['success'] = True
         return json_response
         
@@ -762,7 +768,7 @@ def query_api(app:FastAPI):
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
-        json_response['hashes'] = walk_get_hashes(path, get_vae_ckpt_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_vae_ckpt_dir(), size_to_read=size_to_read)
         return json_response
     
     @secure_post("/models/query_hash_sd_all")
@@ -787,7 +793,7 @@ def query_api(app:FastAPI):
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
         # run in thread, because walk_get_hashes is blocking
-        json_response['hashes'] = asyncio.to_thread(walk_get_hashes, path, get_sd_ckpt_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
         #json_response['hashes'] = walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
         return json_response
     
@@ -812,7 +818,7 @@ def query_api(app:FastAPI):
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
-        json_response['hashes'] = walk_get_hashes(path, get_textual_inversion_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_textual_inversion_dir(), size_to_read=size_to_read)
         return json_response
     
     @secure_post("/models/query_hash_all")
