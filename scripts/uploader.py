@@ -10,7 +10,7 @@ import tqdm
 import requests
 from functools import lru_cache
 from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir
-
+from scripts.api_functions_state import api_functions
 
 try:
     import requests_toolbelt
@@ -113,13 +113,18 @@ class Connection:
                 self.session.auth = auth
             else:
                 raise ValueError(f"auth should be 'username:password' or ('username', 'password'), received {auth}")
-    def create_self_request(self, accessor:str = 'models/query_hash_vae', data= None) -> requests.Response:
+
+    def create_self_request(self, accessor:str = 'get_hash_vae', *args, **kwargs) -> dict:
         """
         Post request to required path
         """
-        target_address = self.get_master_ap_address() + accessor
-        return self.session.post(target_address, data=data)
-            
+        # api functions is async def so we need to run it in a loop
+        # i.e async def query_hash_vae(path: str) -> dict:
+        if accessor not in api_functions:
+            raise ValueError(f"accessor {accessor} not found in api_functions")
+        print("Running", accessor, "with args", args, "and kwargs", kwargs)
+        result = api_functions[accessor](*args, **kwargs)
+        return result
     
     @staticmethod
     def create_progressbar_callback(encoder_obj):
@@ -282,6 +287,7 @@ class Connection:
             base_ckpt_dir = get_vae_ckpt_dir()
             # remove base_ckpt_dir from model_path
             model_path = model_path[len(base_ckpt_dir) + 1:]
+            print(model_path)
             self.sync_vae_model(model_path)
             
     @standalone
@@ -338,9 +344,8 @@ class Connection:
             
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
-        self_hash_response = self.create_self_request('models/query_hash_sd', data={'path': model_path})
+        self_response_json = self.create_self_request('get_hash_sd', path = model_path)
         # {'hash': '1234567890'}
-        self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
             raise FileNotFoundError(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
@@ -373,9 +378,10 @@ class Connection:
             model_target_dirs = [model_path]
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
-        self_hash_response = self.create_self_request('models/query_hash_vae', data={'path': model_path})
+        print(f"Querying hash to self with data {{'path': {model_path}}}")
+        self_response_json = self.create_self_request('get_hash_vae', path = model_path)
         # {'hash': '1234567890'}
-        self_response_json = self_hash_response.json()
+        print("Querying hash to server")
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
             raise FileNotFoundError(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
@@ -408,9 +414,8 @@ class Connection:
             model_target_dirs = [model_path]
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
-        self_hash_response = self.create_self_request('models/query_hash_lora', data={'path': model_path})
+        self_response_json = self.create_self_request('get_hash_lora', path = model_path)
         # {'hash': '1234567890'}
-        self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
             raise FileNotFoundError(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))
@@ -443,9 +448,8 @@ class Connection:
             model_target_dirs = [model_path]
         model_path = '/'.join(model_target_dirs)
         # query hash to self and server
-        self_hash_response = self.create_self_request('models/query_hash_embedding', data={'path': model_path})
+        self_response_json = self.create_self_request('get_hash_textual_inversion', path = model_path)
         # {'hash': '1234567890'}
-        self_response_json = self_hash_response.json()
         self_hash = self_response_json['hashvalue']
         if not self_response_json['success']:
             raise FileNotFoundError(f'{self.get_master_ap_address()} does not have requested model in path ' + model_path + ' ' + str(self_response_json['message']))

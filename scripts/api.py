@@ -11,11 +11,12 @@ from fastapi import File, UploadFile, FastAPI, Form
 from pydantic import BaseModel
 import gradio as gr
 from logging import getLogger
-from scripts.uploader import Connection
 from scripts.download_models import download_controlnet_xl_models, download_controlnet_v11_models, download_model_by_name
 from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir, basepath, get_controlnet_dir
 from scripts.auxilary_api import add_token_count_api
 from scripts.auth import secure_post, secure_get, init_auth
+from scripts.uploader import Connection
+from scripts.api_functions_state import api_functions
 
 logger = getLogger("Auxilary API")
 OVERWRITE = False # if True, overwrites existing files
@@ -655,7 +656,8 @@ def download_controlnet_models_api(app:FastAPI):
         set_models = list_controlnet_models()
         # format set_models to list (from set)
         return {"message": "", 'success': True, 'models': list(set_models)}
-        
+    
+    return {}    
 
 def query_api(app:FastAPI):
     """
@@ -697,8 +699,7 @@ def query_api(app:FastAPI):
         """
         return asyncio.to_thread(walk_get_hashes, path, basepath, size_to_read)
     
-    @secure_post("/models/query_hash", response_model=HashModelResponse)
-    async def get_hash(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    def get_hash(path:str = "", size_to_read:int=1<<31):
         """
         Returns the hash of the file at path.
         path may be Stable-diffusion/<model_name>
@@ -711,8 +712,7 @@ def query_api(app:FastAPI):
         except FileNotFoundError as e:
             return {"message": str(e),"hashvalue":"", 'success': False}
     
-    @secure_post("/models/query_hash_lora", response_model=HashModelResponse)
-    async def get_hash_lora(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    def get_hash_lora(path:str = "", size_to_read:int=1<<31):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get LoRA/<model_name>)
@@ -722,17 +722,15 @@ def query_api(app:FastAPI):
         path = os.path.join(get_lora_ckpt_dir(), path)
         return wrap_return_hash(path, size_to_read=size_to_read)
     
-    @secure_post("/models/query_hash_vae", response_model=HashModelResponse)
-    async def get_hash_vae(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    def get_hash_vae(path:str = "", size_to_read:int=1<<31):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get VAE/<model_name>)
         """
         path = os.path.join(get_vae_ckpt_dir(), path)
         return wrap_return_hash(path, size_to_read=size_to_read)
-    
-    @secure_post("/models/query_hash_sd", response_model=HashModelResponse)
-    async def get_hash_sd(path:str = Form(""), size_to_read:int=Form(1<<31)):
+
+    def get_hash_sd(path:str = "", size_to_read:int=1<<31):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get Stable-diffusion/<model_name>)
@@ -740,9 +738,8 @@ def query_api(app:FastAPI):
         """
         path = os.path.join(get_sd_ckpt_dir(), path)
         return wrap_return_hash(path, size_to_read=size_to_read)
-    
-    @secure_post("/models/query_hash_embedding", response_model=HashModelResponse)
-    async def get_hash_textual_inversion(path:str = Form(""), size_to_read:int=Form(1<<31)):
+
+    def get_hash_textual_inversion(path:str = "", size_to_read:int=1<<31):
         """
         Returns the hash of the file at path.
         path may be <model_name> (to get embeddings/<model_name>)
@@ -751,9 +748,7 @@ def query_api(app:FastAPI):
         path = os.path.join(get_textual_inversion_dir(), path)
         return wrap_return_hash(path, size_to_read=size_to_read)
 
-    
-    @secure_post("/models/query_hash_lora_all")
-    async def get_hash_lora_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+    def get_hash_lora_all(path:str = "", size_to_read:int=1<<31):
         """
         Returns all hashes of all loras in path.
         path may be some folder path
@@ -774,12 +769,11 @@ def query_api(app:FastAPI):
         # recursive
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
-        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_lora_ckpt_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = walk_get_hashes(path, get_lora_ckpt_dir(), size_to_read=size_to_read)
         json_response['success'] = True
         return json_response
-        
-    @secure_post("/models/query_hash_vae_all")
-    async def get_hash_vae_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+
+    def get_hash_vae_all(path:str = "", size_to_read:int=1<<31):
         """
         Returns all hashes of all vaes in path.
         path may be some folder path
@@ -799,11 +793,10 @@ def query_api(app:FastAPI):
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
-        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_vae_ckpt_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = walk_get_hashes(path, get_vae_ckpt_dir(), size_to_read=size_to_read)
         return json_response
-    
-    @secure_post("/models/query_hash_sd_all")
-    async def get_hash_sd_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+
+    def get_hash_sd_all(path:str = "", size_to_read:int=1<<31):
         """
         Returns all hashes of all sds in path.
         path may be some folder path
@@ -824,12 +817,11 @@ def query_api(app:FastAPI):
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
         # run in thread, because walk_get_hashes is blocking
-        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
         #json_response['hashes'] = walk_get_hashes(path, get_sd_ckpt_dir(), size_to_read=size_to_read)
         return json_response
-    
-    @secure_post("/models/query_hash_embedding_all")
-    async def get_hash_textual_inversion_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+
+    def get_hash_textual_inversion_all(path:str = "", size_to_read:int=1<<31):
         """
         Returns all hashes of all embeddings in path.
         path may be some folder path
@@ -849,11 +841,10 @@ def query_api(app:FastAPI):
         time_elapsed = time.time() - started_at
         json_response['time_elapsed'] = time_elapsed
         json_response['success'] = True
-        json_response['hashes'] = await coroutine_walk_get_hashes(path, get_textual_inversion_dir(), size_to_read=size_to_read)
+        json_response['hashes'] = walk_get_hashes(path, get_textual_inversion_dir(), size_to_read=size_to_read)
         return json_response
-    
-    @secure_post("/models/query_hash_all")
-    async def get_hash_all(path:str = Form(""), size_to_read:int=Form(1<<31)):
+
+    def get_hash_all(path:str = "", size_to_read:int=1<<31):
         """
         Returns all hashes of everything in path.
         path may be some folder path
@@ -863,10 +854,10 @@ def query_api(app:FastAPI):
         hashes = {'lora':None, 'vae':None, 'sd':None, 'textual_inversion':None}
         json_response_merged['hashes'] = hashes
         # responses are async, so we can run them in parallel
-        lora_hashes_result = await get_hash_lora_all(path, size_to_read=size_to_read)
-        vae_hashes_result = await get_hash_vae_all(path, size_to_read=size_to_read)
-        sd_hashes_result = await get_hash_sd_all(path, size_to_read=size_to_read)
-        textual_inversion_hashes_result = await get_hash_textual_inversion_all(path, size_to_read=size_to_read)
+        lora_hashes_result = get_hash_lora_all(path, size_to_read=size_to_read)
+        vae_hashes_result = get_hash_vae_all(path, size_to_read=size_to_read)
+        sd_hashes_result = get_hash_sd_all(path, size_to_read=size_to_read)
+        textual_inversion_hashes_result = get_hash_textual_inversion_all(path, size_to_read=size_to_read)
         hashes['lora'] = lora_hashes_result['hashes']
         hashes['vae'] = vae_hashes_result['hashes']
         hashes['sd'] = sd_hashes_result['hashes']
@@ -875,6 +866,80 @@ def query_api(app:FastAPI):
         json_response_merged['success'] = True
         json_response_merged['time_elapsed'] = time_elapsed
         return json_response_merged
+
+    @secure_post("/models/query_hash", response_model=HashModelResponse)
+    def get_hash_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns the hash of the file at path.
+        path may be Stable-diffusion/<model_name>
+        """
+        return get_hash(path, size_to_read=size_to_read)
+    
+    @secure_post("/models/query_hash_lora", response_model=HashModelResponse)
+    def get_hash_lora_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns the hash of the file at path.
+        path may be <model_name> (to get LoRA/<model_name>)
+        """
+        return get_hash_lora(path, size_to_read=size_to_read)
+    @secure_post("/models/query_hash_vae", response_model=HashModelResponse)
+    def get_hash_vae_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns the hash of the file at path.
+        path may be <model_name> (to get VAE/<model_name>)
+        """
+        return get_hash_vae(path, size_to_read=size_to_read)
+    @secure_post("/models/query_hash_sd", response_model=HashModelResponse)
+    def get_hash_sd_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns the hash of the file at path.
+        path may be <model_name> (to get Stable-diffusion/<model_name>)
+        """
+        return get_hash_sd(path, size_to_read=size_to_read)
+    @secure_post("/models/query_hash_embedding", response_model=HashModelResponse)
+    def get_hash_textual_inversion_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns the hash of the file at path.
+        path may be <model_name> (to get embeddings/<model_name>)
+        """
+        return get_hash_textual_inversion(path, size_to_read=size_to_read)
+    @secure_post("/models/query_hash_lora_all")
+    def get_hash_lora_all_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns all hashes of all loras in path.
+        path may be some folder path
+        """
+        return get_hash_lora_all(path, size_to_read=size_to_read)
+    @secure_post("/models/query_hash_vae_all")
+    def get_hash_vae_all_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns all hashes of all vaes in path.
+        path may be some folder path
+        """
+        return get_hash_vae_all(path, size_to_read=size_to_read)
+    @secure_post("/models/query_hash_sd_all")
+    def get_hash_sd_all_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns all hashes of all sds in path.
+        path may be some folder path
+        """
+        return get_hash_sd_all(path, size_to_read=size_to_read)
+    @secure_post("/models/query_hash_embedding_all")
+    def get_hash_textual_inversion_all_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns all hashes of all embeddings in path.
+        path may be some folder path
+        """
+        return get_hash_textual_inversion_all(path, size_to_read=size_to_read)
+    @secure_post("/models/query_hash_all")
+    def get_hash_all_wrapper(path:str = Form(""), size_to_read:int=Form(1<<31)):
+        """
+        Returns all hashes of everything in path.
+        path may be some folder path
+        """
+        return get_hash_all(path, size_to_read=size_to_read)
+    
+    return {func.__name__:func for func in [get_hash, get_hash_lora, get_hash_vae, get_hash_sd, get_hash_textual_inversion, get_hash_lora_all, get_hash_vae_all, get_hash_sd_all, get_hash_textual_inversion_all, get_hash_all]}
     
     
 def register_api(_:gr.Blocks, app:FastAPI):
@@ -883,15 +948,15 @@ def register_api(_:gr.Blocks, app:FastAPI):
     """
     init_auth(app)
     upload_api(app)
-    query_api(app)
+    api_functions.update(query_api(app))
     upload_root_api(app)
     sync_api(app)
     remove_cache_api(app)
-    download_controlnet_models_api(app)
+    api_functions.update(download_controlnet_models_api(app))
     upload_txt_api(app)
     delete_api(app)
     add_token_count_api(app) # auxilary
-    
+    api_functions.update(api_functions)
 
 # only works in context of sdwebui
 try:
