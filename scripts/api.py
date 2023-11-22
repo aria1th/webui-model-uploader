@@ -5,17 +5,19 @@ import shutil
 import time
 import uuid
 import asyncio
+import json
 from contextlib import asynccontextmanager
 from fastapi import File, UploadFile, FastAPI, Form
 from pydantic import BaseModel
 import gradio as gr
+from logging import getLogger
 from scripts.uploader import Connection
 from scripts.download_models import download_controlnet_xl_models, download_controlnet_v11_models, download_model_by_name
-import json
 from scripts.paths import get_sd_ckpt_dir, get_vae_ckpt_dir, get_lora_ckpt_dir, get_textual_inversion_dir, basepath, get_controlnet_dir
 from scripts.auxilary_api import add_token_count_api
-from scripts.auth import secure_post, secure_get, secure_put, secure_delete, init_auth
+from scripts.auth import secure_post, secure_get, init_auth
 
+logger = getLogger("Auxilary API")
 OVERWRITE = False # if True, overwrites existing files
 
 # saving context, to prevent multiple threads from reading the same file
@@ -304,8 +306,11 @@ def sync_api(app:FastAPI):
         connection = Connection(target_api_address, auth=auth)
         try:
             return parse_response_or_dict(connection.sync_sd_model(model_path))
-        except Exception as e:
-            return {"message": str(e), 'success': False}
+        except Exception as exception:
+            if isinstance(exception, (FileNotFoundError, ConnectionRefusedError)):
+                return {"message": str(exception), 'success': False}
+            logger.exception(f"Exception at syncing model {exception}")
+            raise exception
     
     @secure_post("/sync/vae_model", response_model=BasicModelResponse)
     async def sync_vae_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
@@ -315,8 +320,11 @@ def sync_api(app:FastAPI):
         connection = Connection(target_api_address, auth=auth)
         try:
             return parse_response_or_dict(connection.sync_vae_model(model_path))
-        except Exception as e:
-            return {"message": str(e), 'success': False}
+        except Exception as exception:
+            if isinstance(exception, (FileNotFoundError, ConnectionRefusedError)):
+                return {"message": str(exception), 'success': False}
+            logger.exception(f"Exception at syncing model {exception}")
+            raise exception
         
     @secure_post("/sync/lora_model", response_model=BasicModelResponse)
     async def sync_lora_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
@@ -327,8 +335,11 @@ def sync_api(app:FastAPI):
         connection = Connection(target_api_address, auth=auth)
         try:
             return parse_response_or_dict(connection.sync_lora_model(model_path))
-        except Exception as e:
-            return {"message": str(e), 'success': False}
+        except Exception as exception:
+            if isinstance(exception, (FileNotFoundError, ConnectionRefusedError)):
+                return {"message": str(exception), 'success': False}
+            logger.exception(f"Exception at syncing model {exception}")
+            raise exception
         
     @secure_post("/sync/embedding", response_model=BasicModelResponse)
     async def sync_textual_inversion_model(target_api_address:str = Form(""), model_path:str = Form(""), auth:str = Form("")):
@@ -338,8 +349,11 @@ def sync_api(app:FastAPI):
         connection = Connection(target_api_address, auth=auth)
         try:
             return parse_response_or_dict(connection.sync_textual_inversion_model(model_path))
-        except Exception as e:
-            return {"message": str(e), 'success': False}
+        except Exception as exception:
+            if isinstance(exception, (FileNotFoundError, ConnectionRefusedError)):
+                return {"message": str(exception), 'success': False}
+            logger.exception(f"Exception at syncing model {exception}")
+            raise exception
         
     @secure_post("/sync/all_sd_models", response_model=BasicModelResponse)
     async def sync_all_sd_models(target_api_address:str = Form(""), auth:str = Form("")):
@@ -350,8 +364,11 @@ def sync_api(app:FastAPI):
         try:
             connection.sync_all_sd_models()
             return {"message": "Successfully synced all sd models", 'success': True}
-        except Exception as e:
-            return {"message": str(e), 'success': False}
+        except Exception as exception:
+            if isinstance(exception, (FileNotFoundError, ConnectionRefusedError)):
+                return {"message": str(exception), 'success': False}
+            logger.exception(f"Exception at syncing model {exception}")
+            raise exception
         
     @secure_post("/sync/all_vae_models", response_model=BasicModelResponse)
     async def sync_all_vae_models(target_api_address:str = Form(""), auth:str = Form("")):
@@ -362,8 +379,11 @@ def sync_api(app:FastAPI):
         try:
             connection.sync_all_vae_models()
             return {"message": "Successfully synced all vae models", 'success': True}
-        except Exception as e:
-            return {"message": str(e), 'success': False}
+        except Exception as exception:
+            if isinstance(exception, (FileNotFoundError, ConnectionRefusedError)):
+                return {"message": str(exception), 'success': False}
+            logger.exception(f"Exception at syncing model {exception}")
+            raise exception
         
     @secure_post("/sync/all_lora_models", response_model=BasicModelResponse)
     async def sync_all_lora_models(target_api_address:str = Form(""), auth:str = Form("")):
@@ -374,8 +394,11 @@ def sync_api(app:FastAPI):
         try:
             connection.sync_all_lora_models()
             return {"message": "Successfully synced all lora models", 'success': True}
-        except Exception as e:
-            return {"message": str(e), 'success': False}
+        except Exception as exception:
+            if isinstance(exception, (FileNotFoundError, ConnectionRefusedError)):
+                return {"message": str(exception), 'success': False}
+            logger.exception(f"Exception at syncing model {exception}")
+            raise exception
         
     @secure_post("/sync/all_models", response_model=BasicModelResponse)
     async def sync_all_models(target_api_address:str = Form(""), auth:str = Form("")):
@@ -386,8 +409,11 @@ def sync_api(app:FastAPI):
         try:
             connection.sync_everything()
             return {"message": "Successfully synced all models", 'success': True}
-        except Exception as e:
-            return {"message": str(e), 'success': False}
+        except Exception as exception:
+            if isinstance(exception, (FileNotFoundError, ConnectionRefusedError)):
+                return {"message": str(exception), 'success': False}
+            logger.exception(f"Exception at syncing model {exception}")
+            raise exception
         
 def remove_cache_api(app:FastAPI):
     """
