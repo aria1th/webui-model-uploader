@@ -188,7 +188,10 @@ def parse_response_or_dict(response_or_dict):
     """
     if isinstance(response_or_dict, dict):
         return response_or_dict
-    return response_or_dict.json()
+    if hasattr(response_or_dict, 'json'):
+        return response_or_dict.json()
+    # should be dict, raise error
+    raise ValueError(f"Could not parse response or dict {response_or_dict}")
 
 def delete_api(app:FastAPI):
     """
