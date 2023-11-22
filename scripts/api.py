@@ -502,7 +502,7 @@ def upload_api(app:FastAPI):
         # upload file to <root>/models/Stable-diffusion/<sd_model_name>/<sd_model_name>
         # sd_model_name may be a.safetensors or /sd_path/../<model_name>
         assert '../' not in sd_path, "sd_model_name must not contain ../"
-        return upload(file, sd_path, "sd", custom_name=custom_name)
+        return await upload(file, sd_path, "sd", custom_name=custom_name)
         
     @secure_post("/upload_vae_model", response_model=BasicModelResponse)
     async def upload_vae_model(file:UploadFile = File(...), vae_path:str = Form(""), custom_name:str = Form("")):
@@ -511,7 +511,7 @@ def upload_api(app:FastAPI):
         """
         # upload file to <root>/models/VAE/<vae_path>/<vae_model_name>
         assert '../' not in vae_path, "vae_path must not contain ../"
-        return upload(file, vae_path, "vae", custom_name=custom_name)
+        return await upload(file, vae_path, "vae", custom_name=custom_name)
 
     @secure_post("/upload_lora_model", response_model=BasicModelResponse)
     async def upload_lora_model(file:UploadFile = File(...), lora_path:str = Form(""), custom_name:str = Form("")):
@@ -522,7 +522,7 @@ def upload_api(app:FastAPI):
         # l /lora_path/<model_name>
         # assert lora_model_name does not contain ../
         assert '../' not in lora_path, "lora_path must not contain ../"
-        return upload(file, lora_path, "lora", custom_name=custom_name)
+        return await upload(file, lora_path, "lora", custom_name=custom_name)
     
     @secure_post("/upload_embedding", response_model=BasicModelResponse)
     async def upload_textual_inversion_model(file:UploadFile = File(...), textual_inversion_path:str = Form(""), custom_name:str = Form("")):
@@ -533,7 +533,7 @@ def upload_api(app:FastAPI):
         # l /textual_inversion_path/<model_name>
         # assert textual_inversion_model_name does not contain ../
         assert '../' not in textual_inversion_path, "textual_inversion_path must not contain ../"
-        return upload(file, textual_inversion_path, "textual_inversion", custom_name=custom_name)
+        return await upload(file, textual_inversion_path, "textual_inversion", custom_name=custom_name)
     
     # can be used with curl
     #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
@@ -825,10 +825,11 @@ def query_api(app:FastAPI):
         json_response_merged = {'success' : False}
         hashes = {'lora':None, 'vae':None, 'sd':None, 'textual_inversion':None}
         json_response_merged['hashes'] = hashes
-        lora_hashes_result = get_hash_lora_all(path, size_to_read=size_to_read)
-        vae_hashes_result = get_hash_vae_all(path, size_to_read=size_to_read)
-        sd_hashes_result = get_hash_sd_all(path, size_to_read=size_to_read)
-        textual_inversion_hashes_result = get_hash_textual_inversion_all(path, size_to_read=size_to_read)
+        # responses are async, so we can run them in parallel
+        lora_hashes_result = await get_hash_lora_all(path, size_to_read=size_to_read)
+        vae_hashes_result = await get_hash_vae_all(path, size_to_read=size_to_read)
+        sd_hashes_result = await get_hash_sd_all(path, size_to_read=size_to_read)
+        textual_inversion_hashes_result = await get_hash_textual_inversion_all(path, size_to_read=size_to_read)
         hashes['lora'] = lora_hashes_result['hashes']
         hashes['vae'] = vae_hashes_result['hashes']
         hashes['sd'] = sd_hashes_result['hashes']
