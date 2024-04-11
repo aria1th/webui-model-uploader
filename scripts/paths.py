@@ -74,7 +74,7 @@ def get_basic_auth_file() -> str:
 
 @lru_cache(maxsize=1)
 def get_controlnet_dir() -> str:
-    if os.path.exists(os.path.join(basepath, 'models', 'ControlNet')):
+    if os.path.exists(os.path.join(basepath, 'extensions-builtin', 'sd_forge_controlnet')):
         return os.path.join(basepath, 'models', 'ControlNet')
     from modules.shared import opts
     cnet_models_path = opts.data.get('control_net_modules_path', None)
