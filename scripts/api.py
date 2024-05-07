@@ -296,7 +296,19 @@ def delete_api(app:FastAPI):
         else:
             return {"message": f"Could not find {file_path}", 'success': False}
         
-    
+    @secure_post("/delete/controlnet_model", response_model=BasicModelResponse)
+    async def delete_controlnet_model(model_path:str = Form("")):
+        """
+        Deletes a controlnet model at <root>/models/ControlNet/<model_path>
+        curl -X POST -F "model_path=test" http://test.api.address/delete/controlnet_model
+        """
+        # curl -X POST -F "model_path=test" http://test.api.address/delete/controlnet_model
+        file_path = os.path.join(get_controlnet_dir(), model_path)
+        if delete_file(file_path):
+            delete_empty_dir(model_path, get_controlnet_dir())
+            return {"message": f"Successfully deleted {file_path}", 'success': True}
+        else:
+            return {"message": f"Could not find {file_path}", 'success': False}
 
 def sync_api(app:FastAPI):
     """
@@ -521,6 +533,8 @@ def upload_api(app:FastAPI):
                 path = os.path.join(get_lora_ckpt_dir(), path)
             elif modeltype == "textual_inversion":
                 path = os.path.join(get_textual_inversion_dir(), path)
+            elif modeltype == "controlnet":
+                path = os.path.join(get_controlnet_dir(), path)
             else:
                 return {"message": f"Invalid modeltype {modeltype}", 'success': False}
             if custom_name:
@@ -603,6 +617,15 @@ def upload_api(app:FastAPI):
         # assert textual_inversion_model_name does not contain ../
         assert '../' not in textual_inversion_path, "textual_inversion_path must not contain ../"
         return await upload(file, textual_inversion_path, "textual_inversion", custom_name=custom_name)
+    
+    @secure_post("/upload_controlnet_model", response_model=BasicModelResponse)
+    async def upload_controlnet_model(file:UploadFile = File(...), controlnet_path:str = Form(""), custom_name:str = Form("")):
+        """
+        Uploads a controlnet model to <root>/env_dependent_controlnet_path/<controlnet_model_name>
+        Usage: curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "controlnet_path=test" http://localhost:7860/upload_controlnet_model
+        """
+        assert '../' not in controlnet_path, "controlnet_path must not contain ../"
+        return await upload(file, controlnet_path, "controlnet", custom_name=custom_name)
     
     # can be used with curl
     #curl -X POST -F "file=@C:\\Users\\UserName\\Downloads\\test.safetensors" -F "lora_path=test" http://127.0.0.1:7860/upload_lora_model
